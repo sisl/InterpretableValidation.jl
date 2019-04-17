@@ -38,7 +38,7 @@ function all_inv(out, N)
     elseif out == false
         arr[rand(1:N)] = false
     end
-    arr
+    (arr,)
 end
 
 # Inverse of the "any" or "eventually" operator which takes a vector of bools
@@ -52,7 +52,7 @@ function any_inv(out, N)
     elseif out == false
         fill!(arr, false)
     end
-    arr
+    (arr,)
 end
 
 # This function applies the inverse of a scalar boolean operation for each time
@@ -81,4 +81,48 @@ bool_inverses = Dict(
         :.& => bitwise_and_inv,
         :.| => bitwise_or_inv
     )
+
+# Get a list of expressions and outcomes that need to be satisfied for the top level expression to be true
+function eval_conditional_tree(expr, desired_output, N)
+    results = []
+    eval_conditional_tree(expr, desired_output, results, N)
+    results
+end
+
+terminals = [Symbol("=="), Symbol("<"), Symbol(">")] # Calls that should terminate the tree search
+expanders  = [:any, :all] # Calls the expand from scalar to time series
+
+# This version passes around a list of constraints (expression, values) pairs that need to be satisfied
+# `expr` is an expression to sample a trajectory from
+# `desired_output` - The desired output of the expression. Could be a scalar bool or a time series of bools
+# `constraints` - The list of constraints and their corresponding truth values
+# `N` - The length of the time series
+function eval_conditional_tree(expr, desired_output, constraints, N)
+    println("expr: ", expr, " head: ", expr.head, " args: ", expr.args)
+    if expr.head == :call && expr.args[1] in terminals
+        # Here we have hit a useful constraint expression.
+        # Add it to the list of constraints and return
+        push!(constraints, [expr, desired_output])
+        return
+    end
+    if expr.head == :call
+        # This could be :any, :all, :&, :|
+        # Get the inverse of these operations and recurse
+        # Special handing for expanding operators that need to be passed `N`
+        op = expr.args[1]
+        inv = bool_inverses[op]
+        inv = (op in expanders) ? inv(desired_output, N) : inv(desired_output)
+        println("inv: ", inv)
+        for i in 1:length(inv)
+            eval_conditional_tree(expr.args[i+1], inv[i], constraints, N)
+        end
+    else
+        # Here "head" contains the operator and args contains the expressions
+        # Get the inverse and recurse directly
+        inv = bool_inverses[expr.head](desired_output)
+        for i in 1:length(inv)
+            eval_conditional_tree(expr.args[i], inv[i], constraints, N)
+        end
+    end
+end
 
