@@ -60,7 +60,7 @@ end
 # This function assumes that `op` takes in 2 arguments and outputs 1
 function bitwise_op_inv(out, op_inv)
     N = length(out)
-    arr1, arr2 = fill(false, N), fill(false, N)
+    arr1, arr2 = Array{Any}(undef, N), Array{Any}(undef, N)
     for i in 1:N
         arr1[i], arr2[i] = op_inv(out[i])
     end
@@ -82,15 +82,15 @@ bool_inverses = Dict(
         :.| => bitwise_or_inv
     )
 
+terminals = [Symbol("=="), Symbol("<"), Symbol(">")] # Calls that should terminate the tree search
+expanders  = [:any, :all] # Calls the expand from scalar to time series
+
 # Get a list of expressions and outcomes that need to be satisfied for the top level expression to be true
 function eval_conditional_tree(expr, desired_output, N)
     results = []
     eval_conditional_tree(expr, desired_output, results, N)
     results
 end
-
-terminals = [Symbol("=="), Symbol("<"), Symbol(">")] # Calls that should terminate the tree search
-expanders  = [:any, :all] # Calls the expand from scalar to time series
 
 # This version passes around a list of constraints (expression, values) pairs that need to be satisfied
 # `expr` is an expression to sample a trajectory from
