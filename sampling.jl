@@ -10,6 +10,9 @@ mutable struct ActionSpace
     not_equal::OrderedDict{Symbol, Array{Float64,1}}
 end
 
+# Get the action dimension of A
+action_dim(A::ActionSpace) = length(keys(A.bounds))
+
 Constraint = Pair{Expr, Bool}
 Constraints = Array{Constraint}
 

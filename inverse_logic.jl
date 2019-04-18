@@ -1,6 +1,8 @@
 # This file contains the definitions of the inverse operations of different booleans.
 # Given a desired output, these function returns possible inputs to the operator mentioned
 
+include("sampling.jl")
+
 # Inverse of the "and" operator which takes two boolean inputs
 # If output is true then both inputs are true
 # If the output is false then at least one of the inputs is false
@@ -98,7 +100,6 @@ end
 # `constraints` - The list of constraints and their corresponding truth values
 # `N` - The length of the time series
 function eval_conditional_tree(expr, desired_output, constraints, N)
-    println("expr: ", expr, " head: ", expr.head, " args: ", expr.args)
     if expr.head == :call && expr.args[1] in terminals
         # Here we have hit a useful constraint expression.
         # Add it to the list of constraints and return
@@ -112,7 +113,6 @@ function eval_conditional_tree(expr, desired_output, constraints, N)
         op = expr.args[1]
         inv = bool_inverses[op]
         inv = (op in expanders) ? inv(desired_output, N) : inv(desired_output)
-        println("inv: ", inv)
         for i in 1:length(inv)
             eval_conditional_tree(expr.args[i+1], inv[i], constraints, N)
         end
@@ -124,5 +124,59 @@ function eval_conditional_tree(expr, desired_output, constraints, N)
             eval_conditional_tree(expr.args[i], inv[i], constraints, N)
         end
     end
+end
+
+# Take the leaves from evalutating the conditional tree and turns them
+# into a set of contraints for each timestep
+function gen_constraints(expression_leaves, N)
+    constraints = [Constraints(undef, 0) for i=1:N]
+    for leaf in expression_leaves
+        expr, truthvals = leaf
+        for i in 1:N
+            (truthvals[i] == :anybool) && continue
+            push!(constraints[i], Constraint(expr, truthvals[i]))
+        end
+    end
+    return constraints
+end
+
+# Takes the constraints at each timestep and turns them into an action space
+# at each timestep. Returns the action space at each timestep and bool indicating
+# whether all of the timesteps have a valid action space
+function gen_action_spaces(A, constraints)
+    N = length(constraints)
+    aspaces = Array{ActionSpace}(undef, N)
+    valid_flag = Array{Bool}(undef, N)
+    for i in 1:N
+        aspaces[i] = constrain_action_space(A, constraints[i])
+        valid_flag[i] = action_space_valid(A)
+    end
+    return aspaces, all(valid_flag)
+end
+
+# From a series of actions spaces, sample a series of actions
+function sample_series(A_series)
+    N = length(A_series)
+    ndim = action_dim(A_series[1])
+    res = Array{Float64}(undef, N, ndim)
+    for i=1:N
+        res[i, :] = sample_action(A_series[i])
+    end
+    return res
+end
+
+
+# Sample a series of actions using the expression `ex` as a constraint on the
+# actions space A.
+# The algorithm will try `max_trials_for_valid` times before concluding that
+# the constraints conflict with each other and no time series can be sampled
+function sample_series(ex, A, N, max_trials_for_valid = 10)
+    leaves = eval_conditional_tree(ex, true, N)
+    constraints = gen_constraints(leaves, N)
+    for i in 1:max_trials_for_valid
+        action_spaces, valid = gen_action_spaces(A, constraints)
+        (valid) && return sample_series(action_spaces)
+    end
+    @error "Could not find an sequence that satisifes the expression"
 end
 
