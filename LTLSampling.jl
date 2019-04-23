@@ -1,7 +1,131 @@
-# This file contains the definitions of the inverse operations of different booleans.
-# Given a desired output, these function returns possible inputs to the operator mentioned
+using Distributions
+using DataStructures
 
-include("sampling.jl")
+# Action space struct that defines the bounds of a continuous action space
+# As well as keeping a list of values that are not allowed
+mutable struct ActionSpace
+    # The bounds (min/max) of the action space. Entries like: :x => [xmin, xmax]
+    bounds::OrderedDict{Symbol, Array{Float64,1}}
+    # An entry like :x => [0,2] means x != 0 && x != 2
+    not_equal::OrderedDict{Symbol, Array{Float64,1}}
+end
+
+# Get the action dimension of A
+syms(A::ActionSpace) = collect(keys(A.bounds))
+action_dim(A::ActionSpace) = length(syms(A))
+
+
+Constraint = Pair{Expr, Bool}
+Constraints = Array{Constraint}
+
+# Construct an action space struct form a pair of symbols and min/max bounds
+function ActionSpace(bounds::Pair...)
+    bounds = OrderedDict(bounds...)
+    not_equal = OrderedDict{Symbol, Array{Float64,1}}()
+    for sym in keys(bounds)
+        not_equal[sym] = Float64[]
+    end
+    ActionSpace(bounds, not_equal)
+end
+
+# check to see if this action space is valid
+function action_space_valid(A::ActionSpace)
+    for pair in A.bounds
+        s, minb, maxb = pair[1], pair[2][1], pair[2][2]
+
+        # Not valid if the max bound is less than the min bound. Or if the
+        # bounds imply equality but the value is in the "not equals" constraints
+        (maxb < minb || (minb == maxb && minb in A.not_equal[s])) && return false
+    end
+    true
+end
+
+# Induce the specified constraint on the minimum boundary
+# If the new constraint is weaker then ignore it
+function update_min!(A::ActionSpace, sym::Symbol, val)
+    A.bounds[sym][1] = max(A.bounds[sym][1], val)
+end
+
+# Induce the specified constraint on the maximum boundary
+# If the new constraint is weaker then ignore it.
+function update_max!(A::ActionSpace, sym::Symbol, val)
+    A.bounds[sym][2] = min(A.bounds[sym][2], val)
+end
+
+# Constrain the action space by the provided constraint
+function constrain_action_space!(A::ActionSpace, constraint::Constraint)
+    expr, truthval = constraint
+    head, sym, val = (expr.head == :call) ? expr.args : [expr.head, expr.args...]
+    if head == Symbol(".==")
+        if truthval
+            update_min!(A, sym, val)
+            update_max!(A, sym, val)
+        else
+            push!(A.not_equal[sym], val)
+        end
+    elseif head == Symbol(".<")
+        if truthval
+            update_max!(A, sym, val)
+        else
+            update_min!(A, sym, val)
+        end
+    elseif head == Symbol(".>")
+        if truthval
+            update_min!(A, sym, val)
+        else
+            update_max!(A, sym, val)
+        end
+    else
+        @error string("Unknown expression ", expr)
+    end
+end
+
+# Apply the provided constraints to modify an action space
+function constrain_action_space!(A::ActionSpace, constraints::Constraints)
+    for constraint in constraints
+        constrain_action_space!(A::ActionSpace, constraint)
+    end
+end
+
+# Generate a new action space (deepcopy of input) and then constrain it
+function constrain_action_space(A::ActionSpace, constraints::Constraints)
+    Ac = deepcopy(A)
+    constrain_action_space!(Ac, constraints)
+    Ac
+end
+
+# Uniform sampling that handles equality and not equality constraints
+function uniform_sample(vals, not_equal)
+    # This is how equality is represented
+    if vals[2] == vals[1]
+        return vals[1]
+    else
+        # Here we sample a value and make sure it is not in our "not equality" list
+        while true
+            v = rand(Uniform(vals...))
+            (v ∉ not_equal) && return v
+        end
+    end
+end
+
+# Get a sample form the provided action space
+sample_action(A::ActionSpace, sym::Symbol) = uniform_sample(A.bounds[sym], A.not_equal[sym])
+
+
+# Samples an expression that compares symbols to values using op
+# Ch
+function sample_sym_comparison(A::ActionSpace, op::Symbol)
+    sym = rand(syms(A))
+    val = sample_action(A, sym)
+    Expr(:call, op, sym, val)
+end
+
+
+#######################################################################
+#               Functions that govern inverse logic below             #
+#######################################################################
+terminals = [Symbol(".=="), Symbol(".<"), Symbol(".>")] # Calls that should terminate the tree search
+expanders  = [:any, :all] # Calls the expand from scalar to time series
 
 # Inverse of the "and" operator which takes two boolean inputs
 # If output is true then both inputs are true
@@ -84,9 +208,6 @@ bool_inverses = Dict(
         :.| => bitwise_or_inv
     )
 
-terminals = [Symbol("=="), Symbol("<"), Symbol(">")] # Calls that should terminate the tree search
-expanders  = [:any, :all] # Calls the expand from scalar to time series
-
 # Get a list of expressions and outcomes that need to be satisfied for the top level expression to be true
 function eval_conditional_tree(expr, desired_output, N)
     results = []
@@ -156,13 +277,14 @@ end
 
 # From a series of actions spaces, sample a series of actions
 function sample_series(A_series)
-    N = length(A_series)
-    ndim = action_dim(A_series[1])
-    res = Array{Float64}(undef, N, ndim)
+    N, sym_list = length(A_series), syms(A_series[1])
+    res = Dict(sym => Array{Float64}(undef, N) for sym in sym_list)
     for i=1:N
-        res[i, :] = sample_action(A_series[i])
+        for sym in sym_list
+            res[sym][i] = sample_action(A_series[i], sym)
+        end
     end
-    return res
+    res
 end
 
 
@@ -177,6 +299,6 @@ function sample_series(ex, A, N, max_trials_for_valid = 10)
         action_spaces, valid = gen_action_spaces(A, constraints)
         (valid) && return sample_series(action_spaces)
     end
-    @error "Could not find an sequence that satisifes the expression"
+    error("Could not find an sequence that satisifes the expression")
 end
 

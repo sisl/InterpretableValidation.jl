@@ -1,7 +1,6 @@
 using Test
 
-include("sampling.jl")
-include("inverse_logic.jl")
+include("LTLSampling.jl")
 
 ############## Inverse logic tests ######################
 @test and_inv(true) == (true, true)
@@ -44,6 +43,7 @@ include("inverse_logic.jl")
 ############## Sampling and action-space tests ######################
 A = ActionSpace(:x => [-1,1], :y => [0,10])
 
+@test syms(A) == [:x, :y]
 @test A.bounds[:x] == [-1,1] && A.bounds[:y] == [0,10]
 @test A.not_equal[:x] == [] && A.not_equal[:y] == []
 
@@ -76,11 +76,11 @@ constraints = [ Pair(Meta.parse("x1 == 1"), true),
                 Pair(Meta.parse("x6 > 0.5"), false)
                 ]
 constrain_action_space!(A, constraints)
-@test A.bounds[:x1] == [1,1] #&&
-@test A.bounds[:x2] == [-1,1] #&&
-@test A.bounds[:x3] == [-1,0.5] #&&
-@test A.bounds[:x4] == [0.5,1] #&&
-@test A.bounds[:x5] == [0.5,1] #&&
+@test A.bounds[:x1] == [1,1]
+@test A.bounds[:x2] == [-1,1]
+@test A.bounds[:x3] == [-1,0.5]
+@test A.bounds[:x4] == [0.5,1]
+@test A.bounds[:x5] == [0.5,1]
 @test A.bounds[:x6] == [-1,0.5]
 
 @test A.not_equal[:x2] == [2]
@@ -97,11 +97,14 @@ for i=1:1000
     @test a[4] >= A.bounds[:x4][1] && a[4] <= A.bounds[:x4][2]
     @test a[5] >= A.bounds[:x5][1] && a[5] <= A.bounds[:x5][2]
     @test a[6] >= A.bounds[:x6][1] && a[6] <= A.bounds[:x6][2]
+
+    sym = rand(syms(A))
+    b = sample_action(A, sym)
+    @test b >= A.bounds[sym][1] && b <= A.bounds[sym][2]
 end
 
 
-
-
-
-
+@test sample_sym_comparison(A, :<).head == :call
+@test sample_sym_comparison(A, :>).args[1] == :>
+@test sample_sym_comparison(A, Symbol("==")).args[1] == Symbol("==")
 
