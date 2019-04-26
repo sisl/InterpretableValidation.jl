@@ -36,5 +36,5 @@ function loss(rn::RuleNode, grammar::Grammar)
 end
 
 p = GeneticProgram(1000,20,6,0.3,0.3,0.4)
-results_gp = optimize(p, grammar, :R, loss)
+results_gp = optimize(p, grammar, :R, loss, verbose = true)
 
