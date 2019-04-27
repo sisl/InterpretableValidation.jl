@@ -34,6 +34,8 @@ end
 
 Action = Array{OnePedAction, 1}
 
+create_actions(ax, ay, nx, ny, nvx, nvy) = [[OnePedAction([ax[i], ay[i]], Agent([nx[i], ny[i]], [nvx[i], nvy[i]]))] for i in 1:length(ax)]
+
 to_array(opa::OnePedAction) = [opa.ped_accel..., to_array(opa.agent_noise)...]
 
 to_array(a::Action) = vcat([to_array(opa) for opa in a]...)
@@ -63,7 +65,8 @@ function compute_reward(actions, is_goal, dist_heuristic, model)
     reward = 0
     # Before the end of the episode
     for a in actions
-        reward += M_dist(model , a)
+        m = M_dist(model , a)
+        reward += m
     end
 
     # No crash give the low reward
@@ -73,17 +76,14 @@ function compute_reward(actions, is_goal, dist_heuristic, model)
     reward
 end
 
-function simulate(sim::AVSimulator, actions::Array{Action, 1}, car::Agent, peds::Array{Agent}, model::PedestrianModel)
-
+function simulate(sim::AVSimulator, actions::Array{Action, 1}, car0::Agent, peds0::Array{Agent}, model::PedestrianModel)
+    car, peds = deepcopy(car0), deepcopy(peds0)
     npeds = length(peds)
     @assert npeds == length(actions[1])
+
     car_accel, car_obs = [0.,0.], [peds[i] - car for i in npeds]
     car_traj, ped_traj, ai = [], [], 1
     for a in actions
-        println("action: ", a)
-        println("car: ", car)
-        println("ped: ", peds[1])
-        println("============================================")
         for i in npeds
             update_agent!(peds[i], a[i].ped_accel, sim.dt)
         end

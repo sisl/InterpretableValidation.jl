@@ -4,7 +4,7 @@ using CSV
 include("av_simulator.jl")
 
 agent_traj(x,y,vx,vy) = [Agent(x[i], y[i], vx[i], vy[i]) for i in length(x)]
-create_actions(ax, ay, nx, ny, nvx, nvy) = [[OnePedAction([ax[i], ay[i]], Agent([nx[i], ny[i]], [nvx[i], nvy[i]]))] for i in 1:length(ax)]
+
 
 
 function get_actions(df, trial)
@@ -42,8 +42,8 @@ println("Creating simulator and model")
 # Setup the simulator to run it through
 sim = AVSimulator()
 car0 = Agent([-35,0], [11.17, 0])
-peds0 = [Agent([0,-2], [0,1])]
-model = PedestrianModel(0.1, 0.01, 0.1)
+peds0 = [Agent([-0.5,-2], [0,1])]
+model = PedestrianModel(0.1, 0.1, 0.1)
 
 # Simulate
 reward, car_traj, ped_traj = simulate(sim, actions, car0, peds0, model)
@@ -53,6 +53,11 @@ cary = [car_traj[i].pos[2] for i in 1:N]
 
 pedx = [ped_traj[i][1].pos[1] for i in 1:N]
 pedy = [ped_traj[i][1].pos[2] for i in 1:N]
-plot(carx, cary, marker=:square)
-plot!(pedx, pedy, marker=:circ)
+pedx[end] - carx[end]
+plot(carx, cary, marker=:square, ylims = (-10,10), label="Car Position")
+plot!(pedx, pedy, marker=:circ, label="Pedestrian Position")
+
+ypts = [-1.4, -1.4, 1.4, 1.4, -1.4] .+ cary[end]
+xpts = [-2.5, 2.5, 2.5, -2.5, -2.5] .+ carx[end]
+plot!(xpts, ypts, label="", color = :black)
 
