@@ -1,7 +1,6 @@
-using ExprOptimization
 using ExprRules
-include("LTLSampling.jl")
-include("av_simulator.jl")
+include("../LTLSampling.jl")
+include("../av_simulator.jl")
 
 # Define the Simulator and action space
 N = 50
@@ -12,10 +11,10 @@ model = PedestrianModel(0.1, 0.1, 0.1)
 A = ActionSpace(
         :ax => [-2, 2],
         :ay => [-2, 2],
-        :nx => [-2, 2],
-        :ny => [-2, 2],
-        :nvx => [-2, 2],
-        :nvy => [-2, 2])
+        :nx => [-1, 1],
+        :ny => [-1, 1],
+        :nvx => [-1, 1],
+        :nvy => [-1, 1])
 
 # Define the grammar
 grammar = @grammar begin
@@ -25,13 +24,13 @@ grammar = @grammar begin
     C = _(rand(1:N)) # A random integer in the domain
     τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
     τ = _(sample_sym_comparison(A, Symbol(".<"))) # Sample a random less than comparison
-    τ = _(sample_sym_comparison(A, Symbol(".>"))) # Sample a random greater than comparison
+    τ = _(sample_sym_comparison(A, Symbol(".>"))) # Sample a random greater than comparisonq
     τ = _(sample_sym_comparison(A, Symbol(".=="))) # Sample a random equality comparison
 end
 
 
-# Define the loss function
-function loss(rn::RuleNode, grammar::Grammar)
+# Define the loss function (nothing for complexity management)
+function generic_loss(rn::RuleNode, grammar::Grammar)
     ex = get_executable(rn, grammar)
     trials = 10
     total_loss = 0
@@ -47,7 +46,3 @@ function loss(rn::RuleNode, grammar::Grammar)
     end
     total_loss/trials
 end
-
-p = GeneticProgram(1000,30,10,0.3,0.3,0.4)
-results_gp = optimize(p, grammar, :R, loss, verbose = true)
-

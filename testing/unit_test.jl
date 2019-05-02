@@ -1,6 +1,6 @@
 using Test
 
-include("LTLSampling.jl")
+include("../LTLSampling.jl")
 
 ############## Inverse logic tests ######################
 @test and_inv(true) == (true, true)

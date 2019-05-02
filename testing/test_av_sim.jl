@@ -1,7 +1,7 @@
 using Plots
 using DataFrames
 using CSV
-include("av_simulator.jl")
+include("../av_simulator.jl")
 
 agent_traj(x,y,vx,vy) = [Agent(x[i], y[i], vx[i], vy[i]) for i in length(x)]
 

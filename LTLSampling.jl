@@ -343,3 +343,11 @@ function sample_series(ex, A, N, max_trials_for_valid = 10)
     error("Could not find an sequence that satisifes the expression")
 end
 
+# Count the number of nodes in an expression tree.
+function count_nodes(tree, sum = 0)
+    sum += 1
+    for c in tree.children
+        sum += count_nodes(c)
+    end
+    return sum
+end

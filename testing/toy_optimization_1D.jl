@@ -1,6 +1,6 @@
 using ExprOptimization
 using ExprRules
-include("LTLSampling.jl")
+include("../LTLSampling.jl")
 
 # Define the action space
 A = ActionSpace(:x => [0,1])
