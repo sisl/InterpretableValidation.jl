@@ -1,5 +1,5 @@
 using Test
-
+using ExprRules
 include("../LTLSampling.jl")
 
 ############## Inverse logic tests ######################
@@ -108,3 +108,34 @@ end
 @test sample_sym_comparison(A, :>).args[1] == :>
 @test sample_sym_comparison(A, Symbol("==")).args[1] == Symbol("==")
 
+## Testing tree algorithms
+A = ActionSpace(
+        :ax => [-2, 2],
+        :ay => [-2, 2],
+        :nx => [-1, 1],
+        :ny => [-1, 1],
+        :nvx => [-1, 1],
+        :nvy => [-1, 1])
+
+N = 50
+grammar = @grammar begin
+    R = (R && R) #| (R || R) # "and" and "or" expressions for scalar values
+    R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
+    R = all_before(τ, C) | all_after(τ, C) # τ is true everywhere before or after C (inclusive)
+    C = _(rand(1:N)) # A random integer in the domain
+    τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
+    τ = _(sample_sym_comparison(A, Symbol(".<"))) # Sample a random less than comparison
+    τ = _(sample_sym_comparison(A, Symbol(".>"))) # Sample a random greater than comparisonq
+    τ = _(sample_sym_comparison(A, Symbol(".=="))) # Sample a random equality comparison
+end
+
+
+
+R(ind, children... = []) = RuleNode(ind, [children...])
+tree = R(1, R(2, R(9)), R(3, R(9)))
+
+# t = rand(RuleNode, grammar, :R)
+
+@test count_nodes(tree) == 5
+
+@test prune(tree, tree.children[1].children[1], grammar) == R(3, R(9))

@@ -1,18 +1,26 @@
 using ExprOptimization
 using LinearAlgebra
 using CSV
+using DataFrames
 include("setup_av_scenario.jl")
 include("plot_trajectories.jl")
 
-function analyze_algorithm_performance(p, name; trials = 16, loss_fn = generic_loss)
+function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 16)
     expressions, losses, num_nodes, figures = [], [], [], []
     for i = 1:trials
         println("Trial ", i)
         results = optimize(p, grammar, :R, loss_fn, verbose = true)
-        push!(figures, plot_examples(results.expr, 1, "Trial $i"))
-        push!(expressions, string(results.expr))
-        push!(losses, results.loss)
-        push!(num_nodes, count_nodes(results.tree))
+        tree = results.tree
+        if prune_result
+            tree = prune(tree, grammar, loss_fn, 500)
+        end
+
+        loss = loss_fn(tree, grammar)
+        expr = get_executable(tree, grammar)
+        push!(figures, plot_examples(expr, 1, "Trial $i"))
+        push!(expressions, string(expr))
+        push!(losses, loss)
+        push!(num_nodes, count_nodes(tree))
     end
 
     loss_mean, loss_std = mean(losses), std(losses)
@@ -23,21 +31,16 @@ function analyze_algorithm_performance(p, name; trials = 16, loss_fn = generic_l
     return loss_mean, loss_std, nnodes_mean, nnodes_std
 end
 
-npop = 1000
-iterations = 30
-gp = GeneticProgram(npop,iterations,10,0.3,0.3,0.4)
-ge = GrammaticalEvolution(grammar,:Real,npop,iterations,10,10,6,0.2,0.4,0.4; select_method=GrammaticalEvolutions.TruncationSelection(300))
-ce = CrossEntropy(npop,iterations,6,500)
-pipe = PIPE(PPT(0.8),npop,iterations,0.2,0.1,0.05,1,0.2,0.6,0.999,6)
+gp = GeneticProgram(1000,30,10,0.3,0.3,0.4)
+losses = [ mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20),  mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20)]
+prune_result = [false, false, true, true]
+pnames = ["GP", "GP+Penalty", "GP+Pruning", "GP+Penalty+Pruning"]
 
-
-programs = [gp, ge, ce, pipe]
-pnames = ["Genetic Programming", "Grammatical Evolution", "Cross Entropy", "PIPE"]
-np = length(programs)
+np = length(losses)
 loss_means, loss_stds = [], []
 nnodes_means, nnodes_stds = [], []
 for i in 1:np
-    loss_mean, loss_std, nnodes_mean, nnodes_std = analyze_algorithm_performance(programs[i], pnames[i])
+    loss_mean, loss_std, nnodes_mean, nnodes_std = analyze_algorithm_performance(gp, pnames[i], losses[i], prune_result[i], trials = 3)
     push!(loss_means, loss_mean)
     push!(loss_stds, loss_std)
     push!(nnodes_means, nnodes_mean)

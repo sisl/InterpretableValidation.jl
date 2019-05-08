@@ -29,9 +29,9 @@ grammar = @grammar begin
 end
 
 
-# Define the loss function (nothing for complexity management)
-function generic_loss(rn::RuleNode, grammar::Grammar)
-    ex = get_executable(rn, grammar)
+# Define the loss function as the negative of a monte-carlo sampling of the reward
+function mc_loss(tree::RuleNode, grammar::Grammar, complexity_param = 0)
+    ex = get_executable(tree, grammar)
     trials = 10
     total_loss = 0
     for i in 1:trials
@@ -44,5 +44,5 @@ function generic_loss(rn::RuleNode, grammar::Grammar)
         actions = create_actions(action_ts[:ax], action_ts[:ay], action_ts[:nx], action_ts[:ny], action_ts[:nvx], action_ts[:nvy])
         total_loss -= simulate(sim, actions, car0, peds0, model)[1]
     end
-    total_loss/trials
+    total_loss/trials + complexity_param * count_nodes(tree)
 end
