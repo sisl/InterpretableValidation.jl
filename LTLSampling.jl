@@ -358,7 +358,7 @@ function count_nodes(tree, sum = 0)
 end
 
 # Prune a tree until the cost function is above a certain value
-function prune(tree, grammar, f, threshold, leaf_type, binary_terminals_to_ingore)
+function prune_unused_nodes(tree::RuleNode, grammar::Grammar, f::Function, threshold::Float64, leaf_type = :τ, binary_terminals_to_ingore = :C)
     pruned_tree  = tree
     while true
         leaves = get_leaves(pruned_tree, grammar, leaf_type)
