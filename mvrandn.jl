@@ -223,11 +223,11 @@ function mvrandn(l, u, Σ, n)
         accept = size(rv,2) #keep track of # of accepted
         iter = iter+1 #keep track of while loop iterations
         if iter == 10^3 # if iterations are getting large, give warning
-            warning("Acceptance prob. smaller than 0.001")
+            println("Acceptance prob. smaller than 0.001")
         elseif iter > 10^4 # if iterations too large, seek approximation only
             accept = n
             rv = [rv,Z] # add the approximate samples
-            warning("Sample is only approximately distributed.")
+            println("Sample is only approximately distributed.")
         end
     end
     # finish sampling postprocessing
@@ -236,5 +236,10 @@ function mvrandn(l, u, Σ, n)
     rv = rv[:, 1:n] # cut-down the array to desired n samples
     rv = Lfull*rv # reverse scaling of L
     rv = rv[order,:] # reverse the Cholesky permutation
+end
+
+function mvrandn_μ(μ, l, u, Σ, n)
+    Y = mvrandn(l - μ, u - μ, Σ, n)
+    return Y .+ μ
 end
 
