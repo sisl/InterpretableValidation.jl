@@ -1,6 +1,6 @@
 using Plots
 pyplot()
-include("../av_simulator.jl")
+include("av_simulator.jl")
 
 function plot_examples(ex, nsamps, title = nothing, p = nothing)
     if p == nothing
@@ -11,7 +11,7 @@ function plot_examples(ex, nsamps, title = nothing, p = nothing)
     end
     title!(title)
     for i=1:nsamps
-        action_ts = sample_series(ex, A, 50)
+        action_ts = sample_series(ex, A, 1:50, iid_samples, 1)
         actions = create_actions(action_ts[:ax], action_ts[:ay], action_ts[:nx], action_ts[:ny], action_ts[:nvx], action_ts[:nvy])
         rw, car_traj, ped_traj = simulate(sim, actions, car0, peds0, model)
         N = length(car_traj)

@@ -1,7 +1,7 @@
 using Plots
 using DataFrames
 using CSV
-include("../av_simulator.jl")
+include("../examples/av_simulator.jl")
 
 agent_traj(x,y,vx,vy) = [Agent(x[i], y[i], vx[i], vy[i]) for i in length(x)]
 
@@ -33,7 +33,7 @@ end
 
 # Load in the actions that caused a crash
 println("loading actions")
-file = "crashes_200.csv"
+file = "testing/crashes_200.csv"
 df = CSV.File(file) |> DataFrame
 trial = 0
 actions  = get_actions(df, trial)
@@ -54,10 +54,12 @@ cary = [car_traj[i].pos[2] for i in 1:N]
 pedx = [ped_traj[i][1].pos[1] for i in 1:N]
 pedy = [ped_traj[i][1].pos[2] for i in 1:N]
 pedx[end] - carx[end]
-plot(carx, cary, marker=:square, ylims = (-10,10), label="Car Position")
+p = plot(carx, cary, marker=:square, ylims = (-10,10), label="Car Position")
 plot!(pedx, pedy, marker=:circ, label="Pedestrian Position")
 
 ypts = [-1.4, -1.4, 1.4, 1.4, -1.4] .+ cary[end]
 xpts = [-2.5, 2.5, 2.5, -2.5, -2.5] .+ carx[end]
 plot!(xpts, ypts, label="", color = :black)
+
+display(p)
 

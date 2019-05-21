@@ -1,3 +1,12 @@
+
+mutable struct TimeSeriesBounds
+    l::Array{Float64,1}
+    u::Array{Float64,1}
+    neq::Array{Array{Float64,1}}
+end
+
+TimeSeriesBounds(N) = TimeSeriesBounds(zeros(N), zeros(N),  fill(Float64[], N))
+
 # Get a list of expressions and outcomes that need to be satisfied for the top level expression to be true
 function eval_conditional_tree(expr, desired_output, N)
     results = []
@@ -76,29 +85,46 @@ function gen_action_spaces(A, constraints)
     aspaces, all(valid_flag)
 end
 
-# From a series of actions spaces, sample a series of actions
-function sample_series(A_series)
+# Convert a series of action spaces to an array of lower/upper bounds and neq constraints
+function get_lu_neq(A_series)
     N, sym_list = length(A_series), syms(A_series[1])
-    res = Dict(sym => Array{Float64}(undef, N) for sym in sym_list)
+    res = Dict(sym => TimeSeriesBounds(N) for sym in sym_list)
     for i=1:N
         for sym in sym_list
-            res[sym][i] = sample_action(A_series[i], sym)
+            res[sym].l[i] = A_series[i].bounds[sym][1]
+            res[sym].u[i] = A_series[i].bounds[sym][2]
+            res[sym].neq[i] = A_series[i].not_equal[sym]
         end
     end
     res
 end
 
+# From a series of actions spaces, sample a time series
+# dist - sampling distribution that can handle constraints
+# x - locations at which to sample (important if there are temporal correlations)
+# n - Number of samples per action
+function sample_series(A_series, x, dist, n)
+    @assert length(A_series) == length(x)
+    lu_neq, sym_list, N = get_lu_neq(A_series), syms(A_series[1]), length(A_series)
+    res = Dict(sym => Array{Float64}(undef, N, n) for sym in sym_list)
+
+    for sym in sym_list
+        res[sym] .= dist(x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq, n)
+    end
+    res
+end
 
 # Sample a series of actions using the expression `ex` as a constraint on the
 # actions space A.
 # The algorithm will try `max_trials_for_valid` times before concluding that
 # the constraints conflict with each other and no time series can be sampled
-function sample_series(ex, A, N, max_trials_for_valid = 10)
+function sample_series(ex, A, x, dist, n; max_trials_for_valid = 10)
+    N = length(x)
     leaves = eval_conditional_tree(ex, true, N)
     constraints = gen_constraints(leaves, N)
     for i in 1:max_trials_for_valid
         action_spaces, valid = gen_action_spaces(A, constraints)
-        (valid) && return sample_series(action_spaces)
+        (valid) && return sample_series(action_spaces, x, dist, n)
     end
     error("Could not find an sequence that satisifes the expression")
 end

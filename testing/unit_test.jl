@@ -1,6 +1,6 @@
 using Test
 using ExprRules
-include("../LTLSampling.jl")
+using .LTLSampling
 
 ############## Inverse logic tests ######################
 @test and_inv(true) == (true, true)
@@ -34,7 +34,7 @@ include("../LTLSampling.jl")
 @test bool_inverses[Symbol(".&")] == bitwise_and_inv
 @test bool_inverses[Symbol(".|")] == bitwise_or_inv
 
-@test Symbol("==") in terminals && :< in terminals && :< in terminals
+@test Symbol(".==") in terminals && Symbol(".<=") in terminals && Symbol(".>=") in terminals
 @test :any in expanders && :all in expanders
 
 #TODO: eval_conditional_tree testcases
@@ -68,12 +68,12 @@ push!(A.not_equal[:x], 0.)
 
 A = ActionSpace(:x1 => [-1,1], :x2 => [-1,1], :x3 => [-1,1], :x4 => [-1,1], :x5 => [-1,1], :x6 => [-1,1])
 
-constraints = [ Pair(Meta.parse("x1 == 1"), true),
-                Pair(Meta.parse("x2 == 2"), false),
-                Pair(Meta.parse("x3 < 0.5"), true),
-                Pair(Meta.parse("x4 < 0.5"), false),
-                Pair(Meta.parse("x5 > 0.5"), true),
-                Pair(Meta.parse("x6 > 0.5"), false)
+constraints = [ Pair(Meta.parse("x1 .== 1"), true),
+                Pair(Meta.parse("x2 .== 2"), false),
+                Pair(Meta.parse("x3 .<= 0.5"), true),
+                Pair(Meta.parse("x4 .<= 0.5"), false),
+                Pair(Meta.parse("x5 .>= 0.5"), true),
+                Pair(Meta.parse("x6 .>= 0.5"), false)
                 ]
 constrain_action_space!(A, constraints)
 @test A.bounds[:x1] == [1,1]
@@ -86,11 +86,11 @@ constrain_action_space!(A, constraints)
 @test A.not_equal[:x2] == [2]
 
 for i=1:1000
-    @test uniform_sample([-1,1], [0]) > -1
-    @test uniform_sample([-1,1], [0]) < 1
-    @test uniform_sample([-1,1], [0]) != 0
-    @test uniform_sample([1,1] , []) == 1
-    a = sample_action(A)
+    @test uniform_sample(-1, 1, [0]) >= -1
+    @test uniform_sample(-1, 1, [0]) <= 1
+    @test uniform_sample(-1, 1, [0]) != 0
+    @test uniform_sample(1, 1, []) == 1
+    a = sample_uniform_action(A)
     @test a[1] >= A.bounds[:x1][1] && a[1] <= A.bounds[:x1][2]
     @test a[2] >= A.bounds[:x2][1] && a[2] <= A.bounds[:x2][2]
     @test a[3] >= A.bounds[:x3][1] && a[3] <= A.bounds[:x3][2]
@@ -99,14 +99,14 @@ for i=1:1000
     @test a[6] >= A.bounds[:x6][1] && a[6] <= A.bounds[:x6][2]
 
     sym = rand(syms(A))
-    b = sample_action(A, sym)
+    b = sample_uniform_action(A, sym)
     @test b >= A.bounds[sym][1] && b <= A.bounds[sym][2]
 end
 
 
-@test sample_sym_comparison(A, :<).head == :call
-@test sample_sym_comparison(A, :>).args[1] == :>
-@test sample_sym_comparison(A, Symbol("==")).args[1] == Symbol("==")
+@test sample_sym_comparison(A, Symbol(".<=")).head == :call
+@test sample_sym_comparison(A, Symbol(".>=")).args[1] == Symbol(".>=")
+@test sample_sym_comparison(A, Symbol(".==")).args[1] == Symbol(".==")
 
 ## Testing tree algorithms
 A = ActionSpace(
@@ -124,8 +124,8 @@ grammar = @grammar begin
     R = all_before(τ, C) | all_after(τ, C) # τ is true everywhere before or after C (inclusive)
     C = _(rand(1:N)) # A random integer in the domain
     τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
-    τ = _(sample_sym_comparison(A, Symbol(".<"))) # Sample a random less than comparison
-    τ = _(sample_sym_comparison(A, Symbol(".>"))) # Sample a random greater than comparisonq
+    τ = _(sample_sym_comparison(A, Symbol(".<="))) # Sample a random less than comparison
+    τ = _(sample_sym_comparison(A, Symbol(".>="))) # Sample a random greater than comparisonq
     τ = _(sample_sym_comparison(A, Symbol(".=="))) # Sample a random equality comparison
 end
 

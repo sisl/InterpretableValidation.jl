@@ -62,13 +62,13 @@ function constrain_action_space!(A::ActionSpace, constraint::Constraint)
         else
             push!(A.not_equal[sym], val)
         end
-    elseif head == Symbol(".<")
+    elseif head == Symbol(".<=")
         if truthval
             update_max!(A, sym, val)
         else
             update_min!(A, sym, val)
         end
-    elseif head == Symbol(".>")
+    elseif head == Symbol(".>=")
         if truthval
             update_min!(A, sym, val)
         else
@@ -94,11 +94,12 @@ function constrain_action_space(A::ActionSpace, constraints::Constraints)
 end
 
 # Get a sample from the provided action space
-sample_action(A::ActionSpace, sym::Symbol) = uniform_sample(A.bounds[sym], A.not_equal[sym])
+sample_uniform_action(A::ActionSpace, sym::Symbol) = uniform_sample(A.bounds[sym]..., A.not_equal[sym])
+sample_uniform_action(A::ActionSpace) = [sample_uniform_action(A, sym) for sym in syms(A)]
 
 # Samples an expression that compares symbols to values using op
 function sample_sym_comparison(A::ActionSpace, op::Symbol)
     sym = rand(syms(A))
-    val = sample_action(A, sym)
+    val = sample_uniform_action(A, sym)
     Expr(:call, op, sym, val)
 end

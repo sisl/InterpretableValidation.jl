@@ -1,9 +1,10 @@
 using ExprOptimization
-using LinearAlgebra
+using Statistics
 using CSV
 using DataFrames
 include("setup_av_scenario.jl")
 include("plot_trajectories.jl")
+using .LTLSampling
 
 function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 16)
     expressions, losses, num_nodes, figures = [], [], [], []
@@ -12,7 +13,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
         results = optimize(p, grammar, :R, loss_fn, verbose = true)
         tree = results.tree
         if prune_result
-            tree = prune(tree, grammar, loss_fn, 500)
+            tree = prune_unused_nodes(tree, grammar, loss_fn, 500.)
         end
 
         loss = loss_fn(tree, grammar)
@@ -31,16 +32,19 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
     return loss_mean, loss_std, nnodes_mean, nnodes_std
 end
 
-gp = GeneticProgram(1000,30,10,0.3,0.3,0.4)
-losses = [ mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20),  mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20)]
-prune_result = [false, false, true, true]
-pnames = ["GP", "GP+Penalty", "GP+Pruning", "GP+Penalty+Pruning"]
+gp = GeneticProgram(10,5,10,0.3,0.3,0.4)
+# losses = [ mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20),  mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20)]
+losses = [mc_loss]
+prune_result = [true]
+# prune_result = [false, false, true, true]
+pnames = ["GP+prune"]
+# pnames = ["GP", "GP+Penalty", "GP+Pruning", "GP+Penalty+Pruning"]
 
 np = length(losses)
 loss_means, loss_stds = [], []
 nnodes_means, nnodes_stds = [], []
 for i in 1:np
-    loss_mean, loss_std, nnodes_mean, nnodes_std = analyze_algorithm_performance(gp, pnames[i], losses[i], prune_result[i], trials = 16)
+    loss_mean, loss_std, nnodes_mean, nnodes_std = analyze_algorithm_performance(gp, pnames[i], losses[i], prune_result[i], trials = 1)
     push!(loss_means, loss_mean)
     push!(loss_stds, loss_std)
     push!(nnodes_means, nnodes_mean)
@@ -58,13 +62,4 @@ savefig("reward_comparison.pdf")
 
 scatter(nnodes_means, xticks = (1:np, pnames), xrotation = 90, yerr = nnodes_stds, xlabel = "Algorithm", ylabel="Number of Nodes in Expression", title = "Average Tree Complexity over 16 Trials", label="")
 savefig("complexity_comparison.pdf")
-
-
-
-
-
-
-
-
-
 

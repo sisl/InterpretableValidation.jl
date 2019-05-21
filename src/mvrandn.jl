@@ -226,7 +226,7 @@ function mvrandn(l, u, Σ, n)
             println("Acceptance prob. smaller than 0.001")
         elseif iter > 10^4 # if iterations too large, seek approximation only
             accept = n
-            rv = [rv,Z] # add the approximate samples
+            rv = hcat(rv, Z) # add the approximate samples
             println("Sample is only approximately distributed.")
         end
     end

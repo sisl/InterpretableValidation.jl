@@ -1,21 +1,11 @@
 using LinearAlgebra
 
-μ(X, m) = [m(x) for x in X]
-K(X, X′, k) = [k(x,x′) for x in X, x′ in X′]
+μ(X::Array{Float64}, m) = [m(x) for x in X]
+K(X::Array{Float64}, X′::Array{Float64}, k) = [k(x,x′) for x in X, x′ in X′]
 
-get_constrained_gp_dist(m, k) = (x, l, u, not_equal, n) -> sample_constrained_gp(m, k, x, l, u; n = n)
+get_constrained_gp_dist(m, k) = (x::Array{Float64}, l::Array{Float64}, u::Array{Float64}, not_equal, n) -> sample_constrained_gp(m, k, x, l, u; n = n)
 
-function sample_constrained_gp(m, k, Xν, l, u, σ2 = 1e-6; n = 1)
-    N = length(l)
-    @assert length(u) == N && length(not_equal) == N
-
-    # Convert equality constraints to known points
-    l,u = copy(l), copy(u)
-    X, y = Xν[eq], l[eq]
-    l[eq], u[eq] .= -Inf, Inf
-
-    sample_constrained_gp(m, k, X, y, Xν, Xν, l, u, σ2; n = n)
-end
+sample_constrained_gp(m, k, Xν::Array{Float64}, l::Array{Float64}, u::Array{Float64}, σ2 = 1e-6; n = 1, X = Float64[], y= Float64[]) = sample_constrained_gp(m, k, X, y, Xν, Xν, l, u, σ2; n = n)
 
 # m - The mean function
 # k - The kernel
@@ -25,7 +15,15 @@ end
 # Xv - virtual observation points
 # σ2 - Variance of error in observations
 # n - number of samples
-function sample_constrained_gp(m, k, X, y, Xs, Xν, l, u, σ2 = 1e-6; n = 1)
+function sample_constrained_gp(m, k, X::Array{Float64}, y::Array{Float64}, Xs::Array{Float64}, Xν::Array{Float64}, l::Array{Float64}, u::Array{Float64}, σ2::Float64 = 1e-6; n = 1)
+    println("sampling from GP")
+    # Convert equality constraints to known points
+    eq = l .≈ u
+    l,u = copy(l), copy(u)
+    X, y = Float64[X..., Xν[eq]...], Float64[y..., l[eq]...]
+    l[eq] .= -Inf
+    u[eq] .= Inf
+
     # Setup gram matrices
     N, Ns, Nν = length(X), length(Xs), length(Xν)
     Kxx = K(X, X, k)
@@ -44,8 +42,8 @@ function sample_constrained_gp(m, k, X, y, Xs, Xν, l, u, σ2 = 1e-6; n = 1)
     v2 = L \ Kxxs
     A1 = (L' \ v1)'
     A2 = (L' \ v2)'
-    B1 = Kxνxν + σ2*Ixsxs - v1' * v1
-    B2 = Kxsxs - v2' * v2
+    B1 = Kxνxν + σ2*Ixνxν - v1' * v1
+    B2 = Kxsxs + σ2*Ixsxs - v2' * v2
     B3 = Kxsxν - v2' * v1
 
     L1 = cholesky(B1).L

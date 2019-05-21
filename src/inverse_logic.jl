@@ -1,4 +1,4 @@
-terminals = [Symbol(".=="), Symbol(".<"), Symbol(".>")] # Calls that should terminate the tree search
+terminals = [Symbol(".=="), Symbol(".<="), Symbol(".>=")] # Calls that should terminate the tree search
 expanders  = [:any, :all] # Calls the expand from scalar to time series
 parameterized = [:all_before, :all_after]
 

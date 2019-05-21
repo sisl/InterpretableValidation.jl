@@ -1,20 +1,19 @@
 using ExprOptimization
 using ExprRules
-include("../LTLSampling.jl")
+using .LTLSampling
 
 # Define the action space
 A = ActionSpace(:x => [0,1], :y => [-1,0])
 
 # Define the grammar
 grammar = @grammar begin
-    R = (R && R) #| (R || R) # "and" and "or" expressions for scalar values
+    R = (R && R) | (R || R) # "and" and "or" expressions for scalar values
     R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
     τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
-    τ = _(sample_sym_comparison(A, Symbol(".<"))) # Sample a random less than comparison
-    τ = _(sample_sym_comparison(A, Symbol(".>"))) # Sample a random greater than comparison
+    τ = _(sample_sym_comparison(A, Symbol(".<="))) # Sample a random less than comparison
+    τ = _(sample_sym_comparison(A, Symbol(".>="))) # Sample a random greater than comparison
     τ = _(sample_sym_comparison(A, Symbol(".=="))) # Sample a random equality comparison
 end
-
 
 # Define the target rule node:
 function target_expr(x, y)
@@ -25,18 +24,19 @@ end
 # Define the loss function
 function loss(rn::RuleNode, grammar::Grammar)
     ex = get_executable(rn, grammar)
-    trials = 10
-    N = 10
+    trials = 100
     total_loss = 0
-    for i in 1:trials
-        time_series = Dict()
-        try
-            time_series = sample_series(ex, A, N)
-        catch e
-            return 0 # worst possible score if the expression is invalid
-        end
-        total_loss -= target_expr(time_series[:x], time_series[:y])
+    actions = []
+    try
+        actions = sample_series(ex, A, 1:10, iid_samples, trials)
+    catch e
+        return 1e9
     end
+    for i=1:trials
+        x,y = actions[:x][:,i], actions[:y][:,i]
+        total_loss -= target_expr(x,y)
+    end
+
     total_loss/trials
 end
 

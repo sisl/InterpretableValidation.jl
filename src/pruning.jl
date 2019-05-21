@@ -1,3 +1,5 @@
+using ExprRules
+
 # Count the number of nodes in an expression tree.
 function count_nodes(tree, sum = 0)
     sum += 1
