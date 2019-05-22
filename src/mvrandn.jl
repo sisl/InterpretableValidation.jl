@@ -3,6 +3,7 @@ using Distributions
 using LinearAlgebra
 using SpecialFunctions
 using NLsolve
+using DataStructures
 
 # Computes logarithm of tail of Z~N(0,1) mitigating numerical roundoff errors
 lnPhi(x) = -0.5 * x^2 - 0.69314718055994530941723212 +
@@ -222,12 +223,10 @@ function mvrandn(l, u, Σ, n)
         rv = hcat(rv, Z[:, idx]) #accumulate accepted
         accept = size(rv,2) #keep track of # of accepted
         iter = iter+1 #keep track of while loop iterations
-        if iter == 10^3 # if iterations are getting large, give warning
-            println("Acceptance prob. smaller than 0.001")
-        elseif iter > 10^4 # if iterations too large, seek approximation only
+        if iter > 1e4 # if iterations too large, seek approximation only
             accept = n
             rv = hcat(rv, Z) # add the approximate samples
-            println("Sample is only approximately distributed.")
+            println("WARNING: Sample is only approximately distributed.")
         end
     end
     # finish sampling postprocessing

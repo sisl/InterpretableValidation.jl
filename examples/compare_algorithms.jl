@@ -32,7 +32,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
     return loss_mean, loss_std, nnodes_mean, nnodes_std
 end
 
-gp = GeneticProgram(10,5,10,0.3,0.3,0.4)
+gp = GeneticProgram(1000,30,10,0.3,0.3,0.4)
 # losses = [ mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20),  mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20)]
 losses = [mc_loss]
 prune_result = [true]
@@ -62,4 +62,11 @@ savefig("reward_comparison.pdf")
 
 scatter(nnodes_means, xticks = (1:np, pnames), xrotation = 90, yerr = nnodes_stds, xlabel = "Algorithm", ylabel="Number of Nodes in Expression", title = "Average Tree Complexity over 16 Trials", label="")
 savefig("complexity_comparison.pdf")
+
+expr = Meta.parse("all(ny .== -0.53) && all(ay .== -0.51)")
+plot_examples(expr, 1, "Trial 1")
+
+plot!(size = (700,500), xlims = (-20, 0))
+
+savefig("uber")
 

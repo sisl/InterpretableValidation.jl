@@ -103,13 +103,13 @@ end
 # dist - sampling distribution that can handle constraints
 # x - locations at which to sample (important if there are temporal correlations)
 # n - Number of samples per action
-function sample_series(A_series, x, dist, n)
+function sample_series(A_series, x, dist)
     @assert length(A_series) == length(x)
     lu_neq, sym_list, N = get_lu_neq(A_series), syms(A_series[1]), length(A_series)
-    res = Dict(sym => Array{Float64}(undef, N, n) for sym in sym_list)
+    res = Dict(sym => Array{Float64}(undef, N) for sym in sym_list)
 
     for sym in sym_list
-        res[sym] .= dist(x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq, n)
+        res[sym] .= dist(x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq)
     end
     res
 end
@@ -118,13 +118,14 @@ end
 # actions space A.
 # The algorithm will try `max_trials_for_valid` times before concluding that
 # the constraints conflict with each other and no time series can be sampled
-function sample_series(ex, A, x, dist, n; max_trials_for_valid = 10)
+function sample_series(ex, A, x, dist; max_trials_for_valid = 10)
     N = length(x)
     leaves = eval_conditional_tree(ex, true, N)
     constraints = gen_constraints(leaves, N)
     for i in 1:max_trials_for_valid
         action_spaces, valid = gen_action_spaces(A, constraints)
-        (valid) && return sample_series(action_spaces, x, dist, n)
+        (valid) && return sample_series(action_spaces, x, dist)
     end
     error("Could not find an sequence that satisifes the expression")
 end
+

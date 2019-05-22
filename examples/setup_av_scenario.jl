@@ -36,14 +36,15 @@ function mc_loss(tree::RuleNode, grammar::Grammar, complexity_param = 0)
     ex = get_executable(tree, grammar)
     trials = 10
     total_loss = 0
-    actions = []
-    try
-        actions = sample_series(ex, A, x, iid_samples, trials)
-    catch e
-        return 1e9
-    end
     for i=1:trials
-        ts = create_actions(actions[:ax][:,i], actions[:ay][:,i], actions[:nx][:,i], actions[:ny][:,i], actions[:nvx][:,i], actions[:nvy][:,i])
+        actions = []
+        try
+            actions = sample_series(ex, A, x, iid_samples, trials)
+        catch e
+            return 1e9
+        end
+
+        ts = create_actions(actions[:ax], actions[:ay], actions[:nx], actions[:ny], actions[:nvx], actions[:nvy])
         total_loss -= simulate(sim, ts, car0, peds0, model)[1]
     end
 

@@ -26,13 +26,14 @@ function loss(rn::RuleNode, grammar::Grammar)
     ex = get_executable(rn, grammar)
     trials = 100
     total_loss = 0
-    actions = []
-    try
-        actions = sample_series(ex, A, 1:10, iid_samples, trials)
-    catch e
-        return 1e9
-    end
     for i=1:trials
+        actions = []
+        try
+            actions = sample_series(ex, A, 1:10, iid_samples, trials)
+        catch e
+            return 1e9
+        end
+
         x,y = actions[:x][:,i], actions[:y][:,i]
         total_loss -= target_expr(x,y)
     end

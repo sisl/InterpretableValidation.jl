@@ -3,9 +3,12 @@ using LinearAlgebra
 μ(X::Array{Float64}, m) = [m(x) for x in X]
 K(X::Array{Float64}, X′::Array{Float64}, k) = [k(x,x′) for x in X, x′ in X′]
 
-get_constrained_gp_dist(m, k) = (x::Array{Float64}, l::Array{Float64}, u::Array{Float64}, not_equal, n) -> sample_constrained_gp(m, k, x, l, u; n = n)
+get_constrained_gp_dist(k) = (x::Array{Float64}, l::Array{Float64}, u::Array{Float64}, not_equal) -> dropdims(sample_constrained_gp(k, x, l, u), dims=2)
 
-sample_constrained_gp(m, k, Xν::Array{Float64}, l::Array{Float64}, u::Array{Float64}, σ2 = 1e-6; n = 1, X = Float64[], y= Float64[]) = sample_constrained_gp(m, k, X, y, Xν, Xν, l, u, σ2; n = n)
+function sample_constrained_gp(k, Xν::Array{Float64}, l::Array{Float64}, u::Array{Float64}, σ2 = 1e-6; n = 1, X = Float64[], y= Float64[])
+    constraint_mean = mean((l .+ u)./2)
+    sample_constrained_gp((x)->constraint_mean, k, X, y, Xν, Xν, l, u, σ2; n = n)
+end
 
 # m - The mean function
 # k - The kernel
@@ -16,7 +19,6 @@ sample_constrained_gp(m, k, Xν::Array{Float64}, l::Array{Float64}, u::Array{Flo
 # σ2 - Variance of error in observations
 # n - number of samples
 function sample_constrained_gp(m, k, X::Array{Float64}, y::Array{Float64}, Xs::Array{Float64}, Xν::Array{Float64}, l::Array{Float64}, u::Array{Float64}, σ2::Float64 = 1e-6; n = 1)
-    println("sampling from GP")
     # Convert equality constraints to known points
     eq = l .≈ u
     l,u = copy(l), copy(u)
