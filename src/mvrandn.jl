@@ -223,10 +223,10 @@ function mvrandn(l, u, Σ, n)
         rv = hcat(rv, Z[:, idx]) #accumulate accepted
         accept = size(rv,2) #keep track of # of accepted
         iter = iter+1 #keep track of while loop iterations
-        if iter > 1e4 # if iterations too large, seek approximation only
+        if iter > 1e3 # if iterations too large, seek approximation only
             accept = n
             rv = hcat(rv, Z) # add the approximate samples
-            println("WARNING: Sample is only approximately distributed.")
+            # println("WARNING: Sample is only approximately distributed.")
         end
     end
     # finish sampling postprocessing

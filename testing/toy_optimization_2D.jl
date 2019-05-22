@@ -24,17 +24,17 @@ end
 # Define the loss function
 function loss(rn::RuleNode, grammar::Grammar)
     ex = get_executable(rn, grammar)
-    trials = 100
+    trials = 10
     total_loss = 0
     for i=1:trials
         actions = []
         try
-            actions = sample_series(ex, A, 1:10, iid_samples, trials)
+            actions = sample_series(ex, A, 1:25, iid_samples)
         catch e
             return 1e9
         end
 
-        x,y = actions[:x][:,i], actions[:y][:,i]
+        x,y = actions[:x], actions[:y]
         total_loss -= target_expr(x,y)
     end
 
@@ -44,3 +44,4 @@ end
 p = GeneticProgram(1000,30,10,0.3,0.3,0.4)
 results_gp = optimize(p, grammar, :R, loss, verbose = true)
 
+println("loss: ", results_gp.loss, " expressions: ", results_gp.expr)

@@ -44,9 +44,10 @@ function loss(rn::RuleNode, grammar::Grammar)
     total_loss/trials
 end
 
-p = GeneticProgram(100,3,6,0.3,0.3,0.4)
+p = GeneticProgram(500,30,6,0.3,0.3,0.4)
 results_gp = optimize(p, grammar, :R, loss, verbose = true)
 
+println("loss: ", results_gp.loss, " expression: ", results_gp.expr)
 a = sample_series(results_gp.expr, A, [1.:N...], gp_dist)
 plot(a[:x])
 

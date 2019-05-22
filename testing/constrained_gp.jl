@@ -1,7 +1,7 @@
 using Plots; gr()
 using .LTLSampling
 
-k(x::Float64, x′::Float64, l = .1) = exp(-(x-x′)^2 / (2*l^2))
+k(x::Float64, x′::Float64, l = .3) = exp(-(x-x′)^2 / (2*l^2))
 m(x) = 0
 
 X = [0.0]
@@ -20,7 +20,7 @@ u[31:41] .= 0.5
 
 a = sample_constrained_gp(m, k, X, y, Xs, Xν, l, u, n=10)
 u[31:41] .= 1
-b = sample_constrained_gp(m, k, Xν, l, u, n=10)
+b = sample_constrained_gp((x) -> x, k, Float64[], Float64[], Xν,  Xν, l, u, n=10)
 
 
 p = plot(Xs, a, linecolor="blue", label="", title="Constrained Gaussian Process", xlabel="x", ylabel="y", legend=:bottomright)
