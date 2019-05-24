@@ -32,14 +32,13 @@ function eval_conditional_tree(expr, desired_output, constraints, N)
         # Special handing for expanding operators that need to be passed `N`
         op = expr.args[1]
         inv = bool_inverses[op]
-        reduction = 0
         if op in expanders
             inv = inv(desired_output, N)
             eval_conditional_tree(expr.args[2], inv[1], constraints, N)
-        elseif op in parameterized
-            inv = inv(desired_output, expr.args[3], N)
+        elseif op in keys(parameterized)
+            ps = parameterized[op]
+            inv = inv(desired_output, expr.args[3:3+(ps - 1)]..., N)
             eval_conditional_tree(expr.args[2], inv[1], constraints, N)
-            reduction = 1
         else
             inv = inv(desired_output)
             for i in 1:length(inv)
@@ -80,7 +79,7 @@ function gen_action_spaces(A, constraints)
     valid_flag = Array{Bool}(undef, N)
     for i in 1:N
         aspaces[i] = constrain_action_space(A, constraints[i])
-        valid_flag[i] = action_space_valid(A)
+        valid_flag[i] = action_space_valid(aspaces[i])
     end
     aspaces, all(valid_flag)
 end

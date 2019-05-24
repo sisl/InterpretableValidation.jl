@@ -1,9 +1,22 @@
 terminals = [Symbol(".=="), Symbol(".<="), Symbol(".>=")] # Calls that should terminate the tree search
 expanders  = [:any, :all] # Calls the expand from scalar to time series
-parameterized = [:all_before, :all_after]
+parameterized = Dict(:all_before => 1, :all_after => 1, :all_between => 2)
 
 all_before(τ, i) = all(τ[1:i])
 all_after(τ, i) = all(τ[i:end])
+
+all_between(τ, i, j) = all(τ[min(i,j):max(i,j)])
+
+function all_between_inv(out, i, j, N)
+    arr = Array{Any}(undef, N)
+    fill!(arr, :anybool)
+    if out == true
+         arr[min(i,j):max(i,j)] .= true
+    elseif out == false
+        arr[rand(min(i,j):max(i,j))] .= false
+    end
+    (arr,)
+end
 
 
 function all_before_inv(out, i, N)
@@ -108,6 +121,7 @@ bool_inverses = Dict(
         :all => all_inv,
         :all_before => all_before_inv,
         :all_after => all_after_inv,
+        :all_between => all_between_inv,
         :.& => bitwise_and_inv,
         :.| => bitwise_or_inv
     )
