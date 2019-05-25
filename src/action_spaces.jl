@@ -9,14 +9,6 @@ mutable struct ActionSpace
     not_equal::OrderedDict{Symbol, Array{Float64,1}}
 end
 
-Constraint = Pair{Expr, Bool}
-Constraints = Array{Constraint}
-
-
-# Get the action dimension of A
-syms(A::ActionSpace) = collect(keys(A.bounds))
-action_dim(A::ActionSpace) = length(syms(A))
-
 # Construct an action space struct form a pair of symbols and min/max bounds
 function ActionSpace(bounds::Pair...)
     bounds = OrderedDict(bounds...)
@@ -26,6 +18,19 @@ function ActionSpace(bounds::Pair...)
     end
     ActionSpace(bounds, not_equal)
 end
+
+# Construct an actions space from just one symbol in another action space
+ActionSpace(A::ActionSpace, a::Symbol) = ActionSpace(OrderedDict(a => A.bounds[a]), OrderedDict(a => A.not_equal[a]))
+
+Constraint = Pair{Expr, Bool}
+Constraints = Array{Constraint}
+
+
+# Get the action dimension of A
+syms(A::ActionSpace) = collect(keys(A.bounds))
+action_dim(A::ActionSpace) = length(syms(A))
+
+
 
 # check to see if this action space is valid
 function action_space_valid(A::ActionSpace)
@@ -41,15 +46,19 @@ end
 
 # Induce the specified constraint on the minimum boundary
 # If the new constraint is weaker then ignore it
-function update_min!(A::ActionSpace, sym::Symbol, val)
+function update_min!(A::ActionSpace, sym::Symbol, val::Float64)
     A.bounds[sym][1] = max(A.bounds[sym][1], val)
 end
 
+update_min!(A::ActionSpace, sym::Symbol, val::Expr) = update_min!(A, sym, eval(val))
+
 # Induce the specified constraint on the maximum boundary
 # If the new constraint is weaker then ignore it.
-function update_max!(A::ActionSpace, sym::Symbol, val)
+function update_max!(A::ActionSpace, sym::Symbol, val::Float64)
     A.bounds[sym][2] = min(A.bounds[sym][2], val)
 end
+
+update_max!(A::ActionSpace, sym::Symbol, val::Expr) = update_max!(A, sym, eval(val))
 
 # Constrain the action space by the provided constraint
 function constrain_action_space!(A::ActionSpace, constraint::Constraint)
