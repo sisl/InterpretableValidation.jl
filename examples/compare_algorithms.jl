@@ -63,10 +63,4 @@ savefig("reward_comparison.pdf")
 scatter(nnodes_means, xticks = (1:np, pnames), xrotation = 90, yerr = nnodes_stds, xlabel = "Algorithm", ylabel="Number of Nodes in Expression", title = "Average Tree Complexity over 16 Trials", label="")
 savefig("complexity_comparison.pdf")
 
-expr = Meta.parse("all(ny .== -0.53) && all(ay .== -0.51)")
-plot_examples(expr, 1, "Trial 1")
-
-plot!(size = (700,500), xlims = (-20, 0))
-
-savefig("uber")
 
