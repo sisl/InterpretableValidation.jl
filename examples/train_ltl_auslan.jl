@@ -1,4 +1,4 @@
-# using .LTLSampling
+using .LTLSampling
 using Statistics
 using ExprRules
 using ExprOptimization
@@ -113,7 +113,7 @@ function train_ltl_model(train_data)
         end
 
         # Optimize the function
-        p = GeneticProgram(1000,30,6,0.3,0.3,0.4)
+        p = GeneticProgram(500,15,6,0.3,0.3,0.4)
         results_gp = optimize(p, grammar, :R, loss, verbose = true)
         tree = prune_unused_nodes(results_gp.tree, grammar, loss, 15*results_gp.loss, :τ, [:C, :G, :H])
 
