@@ -10,19 +10,19 @@ function count_nodes(tree, sum = 0)
 end
 
 # Prune a tree until the cost function is above a certain value
-function prune_unused_nodes(tree::RuleNode, grammar::Grammar, f::Function, threshold::Float64, leaf_type = :τ, binary_terminals_to_ingore = :C)
+function prune_unused_nodes(tree::RuleNode, grammar::Grammar, f::Function, threshold::Float64, leaf_type, ignore_terminals = [])
     pruned_tree  = tree
     while true
-        leaves = get_leaves(pruned_tree, grammar, leaf_type)
+        leaves = get_leaves_of_type(pruned_tree, grammar, leaf_type, ignore_terminals)
         best_subtree, best_subtree_f = nothing, Inf
         for l in leaves
-            new_tree = prune(pruned_tree, l, grammar, binary_terminals_to_ingore)
+            new_tree = prune(pruned_tree, l, grammar)
             new_f = f(new_tree, grammar)
             if new_f < best_subtree_f
                 best_subtree, best_subtree_f = new_tree, new_f
             end
         end
-        if best_subtree_f < threshold
+        if best_subtree_f < threshold && pruned_tree != best_subtree
             pruned_tree = best_subtree
         else
             break
@@ -31,31 +31,31 @@ function prune_unused_nodes(tree::RuleNode, grammar::Grammar, f::Function, thres
     deepcopy(pruned_tree)
 end
 
-function get_leaves(tree, grammar, type = :τ)
+function get_leaves_of_type(tree, grammar, type, ignore_terminals = [])
     leaves = []
-    if isempty(tree.children) && return_type(grammar, tree) == type
+    if all(return_type(grammar, c) in ignore_terminals for c in tree.children) && return_type(grammar, tree) == type
         push!(leaves, tree)
     end
     for c in tree.children
-        push!(leaves, get_leaves(c, grammar, type)...)
+        push!(leaves, get_leaves_of_type(c, grammar, type, ignore_terminals)...)
     end
     leaves
 end
 
-function prune(tree::RuleNode, leaf, grammar, binary_terminals_to_ingore=:C)
+function prune(tree::RuleNode, leaf, grammar)
     tree_cp = deepcopy(tree)
-    prune!(tree_cp, leaf, grammar, binary_terminals_to_ingore)
+    prune!(tree_cp, leaf, grammar)
     tree_cp
 end
 
-prune!(tree::RuleNode, leaf, grammar, binary_terminals_to_ingore=:C) = prune!([tree], leaf, grammar, binary_terminals_to_ingore)
+prune!(tree::RuleNode, leaf, grammar) = prune!([tree], leaf, grammar)
 
-function prune!(lineage::Array{RuleNode}, leaf, grammar, binary_terminals_to_ingore=:C)
+function prune!(lineage::Array{RuleNode}, leaf, grammar)
     if lineage[end] == leaf
         # Move up the lineage until a binary operator is found
         for i in length(lineage)-1:-1:1
-            ctypes = child_types(grammar, lineage[i].ind)
-            if length(ctypes) == 2 && binary_terminals_to_ingore ∉ ctypes
+            children = lineage[i].children[[c != lineage[i+1] for c in lineage[i].children]]
+            if length(children) == 1 && return_type(grammar, children[1]) == return_type(grammar, lineage[i])
                 replace_tree!(lineage[i], i==1 ? nothing : lineage[i-1], lineage[i+1])
                 return true
             end
@@ -64,7 +64,7 @@ function prune!(lineage::Array{RuleNode}, leaf, grammar, binary_terminals_to_ing
     end
     # Otherwise, true to prune the children
     for c in lineage[end].children
-        prune!([lineage..., c], leaf, grammar, binary_terminals_to_ingore) && return true
+        prune!([lineage..., c], leaf, grammar) && return true
     end
     false
 end

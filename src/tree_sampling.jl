@@ -141,15 +141,19 @@ function sample_series(ex, A, x, dist, sym_data = Dict(); max_trials_for_valid =
     throw(InvalidExpression("Expression was invalid"))
 end
 
+function iterative_sample(Afull, x, dist, model)
+    # Get a sample of all actions up to this point
+    data = Dict()
+    for a in keys(model)
+        data[a] = sample_series(model[a], ActionSpace(Afull, a), x, dist, data)[a]
+    end
+    return data
+end
+
 # This function samples trajectories in an iterative manner looping over each dimension.
 # this way we can describe relationships between variables and we build them up one at a time
 function iterative_sample(a, ex, Afull, x, dist, found_expressions)
-    # Get a sample of all actions up to this point
-    curr_data = Dict()
-    for aprev in keys(found_expressions)
-        curr_data[aprev] = sample_series(found_expressions[aprev], ActionSpace(Afull, aprev), x, dist, curr_data)[aprev]
-    end
-
+    curr_data = iterative_sample(Afull, x, dist, found_expressions)
     # Get a sample of the current expression
     curr_data[a] = sample_series(ex, ActionSpace(Afull, a), x, dist, curr_data)[a]
     return curr_data

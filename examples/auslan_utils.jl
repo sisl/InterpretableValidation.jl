@@ -1,10 +1,11 @@
 using CSV
 using DataFrames
+using DataStructures
 
-lcols = Dict(
-    :x => :Column1,
-    :y => :Column2,
-    :z => :Column3,
+lcols = OrderedDict(
+    :x_translation => :Column1,
+    :y_translation => :Column2,
+    :z_translation => :Column3,
     :roll => :Column4,
     :pitch => :Column5,
     :yaw => :Column6,
@@ -14,10 +15,10 @@ lcols = Dict(
     :ringfinger_bend => :Column10,
     :littlefinger_bend => :Column11,
     )
-rcols = Dict(
-    :x => :Column12,
-    :y => :Column13,
-    :z => :Column14,
+rcols = OrderedDict(
+    :x_translation => :Column12,
+    :y_translation => :Column13,
+    :z_translation => :Column14,
     :roll => :Column15,
     :pitch => :Column16,
     :yaw => :Column17,
@@ -35,7 +36,7 @@ end
 function get_data(sign_str, cols, hand, t = 1:2:30)
     Nfiles, Ntrials, index = 9, 3, 1
     N = Nfiles*Ntrials
-    data = Dict(k => zeros(length(t), N) for k in cols)
+    data = OrderedDict(k => zeros(length(t), N) for k in cols)
     for f = 1:Nfiles, j=1:Ntrials
         file = filename(sign_str, f, j)
         df = CSV.File(file, delim="\t", header=false) |> DataFrame
@@ -46,4 +47,10 @@ function get_data(sign_str, cols, hand, t = 1:2:30)
     end
     return data
 end
+
+unary_minus(x) = -x
+sek(x,xp, l=2, σ2 = 0.2) = σ2*exp(-(x-xp)^2/(2*l^2))
+
+# Write loss function that returns average l2 loss of an expression of a similar size
+time_series_loss(data, sample) = mean(sum((data .- sample).^2, dims = 1))
 
