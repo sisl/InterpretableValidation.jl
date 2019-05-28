@@ -90,7 +90,7 @@ function train_ltl_model(train_data)
         end"))))
 
         # Define a loss
-        function loss(rn::RuleNode, grammar::Grammar)
+        function loss(rn::RuleNode, grammar::Grammar, penalty_param = 0)
             ex = get_executable(rn, grammar)
             total_loss, trials = 0, 10
 
@@ -106,16 +106,17 @@ function train_ltl_model(train_data)
                         error("Uncaught error, ", e)
                     end
                 end
-                total_loss += time_series_loss(train_data[a], actions)
+                total_loss += time_series_loss(train_data[a], actions) + penalty_param*count_nodes(rn)
             end
 
             total_loss/trials
         end
 
         # Optimize the function
-        p = GeneticProgram(500,15,6,0.3,0.3,0.4)
+        p = GeneticProgram(1000,20,6,0.3,0.3,0.4)
         results_gp = optimize(p, grammar, :R, loss, verbose = true)
-        tree = prune_unused_nodes(results_gp.tree, grammar, loss, 15*results_gp.loss, :τ, [:C, :G, :H])
+
+        tree = prune_unused_nodes(results_gp.tree, grammar, loss, 0.1*results_gp.loss, :τ, [:C, :G, :H])
 
         # store the result
         model[a] = get_executable(tree, grammar)

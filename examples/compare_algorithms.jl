@@ -13,7 +13,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
         results = optimize(p, grammar, :R, loss_fn, verbose = true)
         tree = results.tree
         if prune_result
-            tree = prune_unused_nodes(tree, grammar, loss_fn, 500.)
+            tree = prune_unused_nodes(tree, grammar, loss_fn, 0.1*results.loss, :τ, [:C, :G, :H])
         end
 
         loss = loss_fn(tree, grammar)
@@ -33,7 +33,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
 end
 
 gp = GeneticProgram(2000,30,10,0.3,0.3,0.4)
-losses = [ mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20),  mc_loss, (tree::RuleNode, grammar::Grammar) -> mc_loss(tree, grammar, 20)]
+losses = [ mc_loss, (tree::RuleNode, grammar::Grammar, cp = 20) -> mc_loss(tree, grammar, cp),  mc_loss, (tree::RuleNode, grammar::Grammar, cp=20) -> mc_loss(tree, grammar, cp)]
 # losses = [mc_loss]
 # prune_result = [true]
 prune_result = [false, false, true, true]

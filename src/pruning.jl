@@ -10,20 +10,21 @@ function count_nodes(tree, sum = 0)
 end
 
 # Prune a tree until the cost function is above a certain value
-function prune_unused_nodes(tree::RuleNode, grammar::Grammar, f::Function, threshold::Float64, leaf_type, ignore_terminals = [])
-    pruned_tree  = tree
+function prune_unused_nodes(tree::RuleNode, grammar::Grammar, f::Function, penalty_param::Float64, leaf_type, ignore_terminals = [])
+    pruned_tree, curr_loss = tree, f(tree, grammar, penalty_param)
     while true
         leaves = get_leaves_of_type(pruned_tree, grammar, leaf_type, ignore_terminals)
         best_subtree, best_subtree_f = nothing, Inf
         for l in leaves
             new_tree = prune(pruned_tree, l, grammar)
-            new_f = f(new_tree, grammar)
+            new_f = f(new_tree, grammar, penalty_param)
             if new_f < best_subtree_f
                 best_subtree, best_subtree_f = new_tree, new_f
             end
         end
-        if best_subtree_f < threshold && pruned_tree != best_subtree
+        if best_subtree_f < curr_loss && pruned_tree != best_subtree
             pruned_tree = best_subtree
+            curr_loss = best_subtree_f
         else
             break
         end
