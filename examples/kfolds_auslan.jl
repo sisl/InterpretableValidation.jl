@@ -2,7 +2,7 @@ using Random
 using Statistics
 
 include("train_ltl_auslan.jl")
-# include("train_gp_auslan.jl")
+include("train_gp_auslan.jl")
 
 function kfolds(data, k, train_fn, model_loss_fn, model_callback = nothing)
     vars = collect(keys(hand))
@@ -20,7 +20,9 @@ function kfolds(data, k, train_fn, model_loss_fn, model_callback = nothing)
         model, other_attr = train_fn(train_data)
         loss = model_loss_fn(test_data, model, other_attr)
         loss = model_loss_fn(train_data, model, other_attr)
-        model_callback(model, loss, i)
+        if model_callback != nothing
+            model_callback(model, loss, i)
+        end
         push!(losses, loss)
     end
     return mean(losses), std(losses)
@@ -34,9 +36,14 @@ vars = collect(keys(hand))
 # Load in all examples for the sign of my choice
 data = get_data(auslan_sign, vars, hand)
 
-m, s = kfolds(data, 5, train_ltl_model, ltl_model_loss, save_model)
+# m, s = kfolds(data, 5, train_ltl_model, ltl_model_loss, save_model)
+# fname = "ltl_results.txt"
 
-f = open("ltl_results.txt", "w")
+m, s = kfolds(data, 5, train_gp_model, gp_model_loss)
+fname = "gp_results.txt"
+
+
+f = open(fname, "w")
 write(f, string("mean: ", m, " std: ", s))
 close(f)
 

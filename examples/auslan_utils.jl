@@ -1,6 +1,7 @@
 using CSV
 using DataFrames
 using DataStructures
+using Statistics
 
 lcols = OrderedDict(
     :x_translation => :Column1,
