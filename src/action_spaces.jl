@@ -50,20 +50,20 @@ function update_min!(A::ActionSpace, sym::Symbol, val::Float64)
     A.bounds[sym][1] = max(A.bounds[sym][1], val)
 end
 
-update_min!(A::ActionSpace, sym::Symbol, val::Expr) = update_min!(A, sym, eval(val))
-
 # Induce the specified constraint on the maximum boundary
 # If the new constraint is weaker then ignore it.
 function update_max!(A::ActionSpace, sym::Symbol, val::Float64)
     A.bounds[sym][2] = min(A.bounds[sym][2], val)
 end
 
-update_max!(A::ActionSpace, sym::Symbol, val::Expr) = update_max!(A, sym, eval(val))
-
 # Constrain the action space by the provided constraint
 function constrain_action_space!(A::ActionSpace, constraint::Constraint)
     expr, truthval = constraint
     head, sym, val = (expr.head == :call) ? expr.args : [expr.head, expr.args...]
+    if isa(val, Expr)
+        val = eval(val)
+    end
+    val = Meta.eval(val)
     if head == Symbol(".==")
         if truthval
             update_min!(A, sym, val)

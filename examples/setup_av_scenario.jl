@@ -1,4 +1,5 @@
 using ExprRules
+using Distributions
 using .LTLSampling
 
 include("av_simulator.jl")
@@ -11,8 +12,8 @@ car0 = Agent([-35,0], [11.17, 0])
 peds0 = [Agent([-0.5,-2], [0,1])]
 model = PedestrianModel(0.1, 0.1, 0.1)
 A = ActionSpace(
-        :ax => [-2, 2],
-        :ay => [-2, 2],
+        :ax => [-1, 1],
+        :ay => [-1, 1],
         :nx => [-1, 1],
         :ny => [-1, 1],
         :nvx => [-1, 1],
@@ -24,7 +25,7 @@ range(-2,2, length=20)
 # Define the grammar
 grammar = @grammar begin
     R = (R && R) | (R || R) # "and" and "or" expressions for scalar values
-    # R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
+    R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
     R = any_between(τ, C, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
     C = |(1:40) # A random integer in the domain
     τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
@@ -43,6 +44,9 @@ end
 
 ex = get_executable(rand(RuleNode, grammar, :R), grammar)
 
+tnormal_dist(l,u) = TruncatedNormal(0,0.1,l,u)
+
+tnorm_iid(x,l,u,neq) = iid_samples(x,l,u,neq,dist=tnormal_dist)
 
 # Define the loss function as the negative of a monte-carlo sampling of the reward
 function mc_loss(tree::RuleNode, grammar::Grammar, complexity_param = 0)
@@ -52,7 +56,7 @@ function mc_loss(tree::RuleNode, grammar::Grammar, complexity_param = 0)
     for i=1:trials
         actions = []
         try
-            actions = sample_series(ex, A, x, iid_samples)
+            actions = sample_series(ex, A, x, tnorm_iid)
         catch e
             if isa(e, InvalidExpression)
                 return 1e9

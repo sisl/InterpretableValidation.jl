@@ -32,7 +32,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result, unpenaliz
     return loss_mean, loss_std, nnodes_mean, nnodes_std
 end
 
-gp = GeneticProgram(1000,30,10,0.3,0.3,0.4)
+gp = GeneticProgram(1500,30,10,0.3,0.3,0.4)
 losses = [ mc_loss, (tree::RuleNode, grammar::Grammar, cp = 20) -> mc_loss(tree, grammar, cp),  mc_loss, (tree::RuleNode, grammar::Grammar, cp=20) -> mc_loss(tree, grammar, cp)]
 # losses = [mc_loss]
 # prune_result = [true]

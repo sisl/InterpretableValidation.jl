@@ -4,8 +4,8 @@ using ExprRules
 using ExprOptimization
 include("auslan_utils.jl")
 
-function save_model(model, loss, i)
-    file = string("ltl_model_", i, ".txt")
+function save_model(model, loss, i, label)
+    file = string("ltl_model_", label,"_", i, ".txt")
     f = open(file, "w")
     write(f, string(model, "\n"))
     write(f, string(loss))
