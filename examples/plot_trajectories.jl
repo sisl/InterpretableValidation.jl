@@ -31,8 +31,8 @@ function plot_examples(ex, nsamps, title = nothing, p = nothing)
     p
 end
 
-ex = Meta.parse("all(((ax .<= 0.1291635133369189) .& (ny .== -0.9742963087069332)) .& (ay .== -0.30090443707542924))")
-
-plot_examples(ex, 1, "")
-savefig("ltl_av_example.pdf")
+# ex = Meta.parse("all(((ax .<= 0.1291635133369189) .& (ny .== -0.9742963087069332)) .& (ay .== -0.30090443707542924))")
+#
+# plot_examples(ex, 1, "")
+# savefig("ltl_av_example.pdf")
 
