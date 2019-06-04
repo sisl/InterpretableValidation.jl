@@ -6,7 +6,7 @@ include("setup_av_scenario.jl")
 include("plot_trajectories.jl")
 using .LTLSampling
 
-function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 16)
+function analyze_algorithm_performance(p, name, loss_fn, prune_result, unpenalized_loss; trials = 16)
     expressions, losses, num_nodes, figures = [], [], [], []
     for i = 1:trials
         println("Trial ", i)
@@ -16,7 +16,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
             tree = prune_unused_nodes(tree, grammar, loss_fn, 0.1*results.loss, :τ, [:C, :G, :H])
         end
 
-        loss = loss_fn(tree, grammar)
+        loss = unpenalized_loss(tree, grammar)
         expr = get_executable(tree, grammar)
         push!(figures, plot_examples(expr, 1, "Trial $i"))
         push!(expressions, string(expr))
@@ -32,7 +32,7 @@ function analyze_algorithm_performance(p, name, loss_fn, prune_result; trials = 
     return loss_mean, loss_std, nnodes_mean, nnodes_std
 end
 
-gp = GeneticProgram(2000,30,10,0.3,0.3,0.4)
+gp = GeneticProgram(1000,30,10,0.3,0.3,0.4)
 losses = [ mc_loss, (tree::RuleNode, grammar::Grammar, cp = 20) -> mc_loss(tree, grammar, cp),  mc_loss, (tree::RuleNode, grammar::Grammar, cp=20) -> mc_loss(tree, grammar, cp)]
 # losses = [mc_loss]
 # prune_result = [true]
@@ -44,7 +44,7 @@ np = length(losses)
 loss_means, loss_stds = [], []
 nnodes_means, nnodes_stds = [], []
 for i in 1:np
-    loss_mean, loss_std, nnodes_mean, nnodes_std = analyze_algorithm_performance(gp, pnames[i], losses[i], prune_result[i], trials = 16)
+    loss_mean, loss_std, nnodes_mean, nnodes_std = analyze_algorithm_performance(gp, pnames[i], losses[i], prune_result[i], mc_loss, trials = 5)
     push!(loss_means, loss_mean)
     push!(loss_stds, loss_std)
     push!(nnodes_means, nnodes_mean)

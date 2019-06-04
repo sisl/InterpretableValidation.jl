@@ -6,6 +6,7 @@ all_before(τ, i) = all(τ[1:i])
 all_after(τ, i) = all(τ[i:end])
 
 all_between(τ, i, j) = all(τ[min(i,j):max(i,j)])
+any_between(τ, i, j) = any(τ[min(i,j):max(i,j)])
 
 function all_between_inv(out, i, j, N)
     arr = Array{Any}(undef, N)
@@ -13,7 +14,20 @@ function all_between_inv(out, i, j, N)
     if out == true
          arr[min(i,j):max(i,j)] .= true
     elseif out == false
-        arr[rand(min(i,j):max(i,j))] .= false
+        arr[rand(min(i,j):max(i,j))] = false
+    end
+    (arr,)
+end
+
+function any_between_inv(out, i, j, N)
+    arr = Array{Any}(undef, N)
+    fill!(arr, :anybool)
+    if out == true
+        pt = rand(min(i,j):max(i,j))
+        arr[1:pt] .= false
+        arr[pt] = true
+    elseif out == false
+        arr[min(i,j):max(i,j)] .= false
     end
     (arr,)
 end

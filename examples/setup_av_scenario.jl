@@ -24,8 +24,8 @@ range(-2,2, length=20)
 # Define the grammar
 grammar = @grammar begin
     R = (R && R) | (R || R) # "and" and "or" expressions for scalar values
-    R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
-    R = all_before(τ, C) | all_after(τ, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
+    # R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
+    R = any_between(τ, C, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
     C = |(1:40) # A random integer in the domain
     τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
     τ = _(sample_sym_comparison(A, Symbol(".<=")))

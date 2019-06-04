@@ -79,7 +79,7 @@ function train_ltl_model(train_data)
         # Define a grammar
         grammar = Meta.eval(macroexpand(Main, Meta.parse(string("@grammar begin
             R = (R && R)
-            R = all(τ) | any(τ) | all_before(τ, C) | all_after(τ, C) | all_between(τ, C, C)
+            R = any_between(τ, C, C) | all_between(τ, C, C)
             C = |($indices)
             τ = (τ .& τ)
             τ = ($a .<= G) | ($a .== G) | ($a .>= G)

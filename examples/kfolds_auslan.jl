@@ -19,7 +19,7 @@ function kfolds(data, k, train_fn, model_loss_fn, model_callback = nothing)
 
         model, other_attr = train_fn(train_data)
         loss = model_loss_fn(test_data, model, other_attr)
-        loss = model_loss_fn(train_data, model, other_attr)
+        # loss = model_loss_fn(train_data, model, other_attr)
         if model_callback != nothing
             model_callback(model, loss, i)
         end
