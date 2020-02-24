@@ -139,7 +139,7 @@ end
 function sample_series(A_series::Array{DiscreteActionSpace}, x, dist::Dict{Int, Float64})
     @assert length(A_series) == length(x)
     sym_list, N = syms(A_series[1]), length(A_series)
-    res = Dict(sym => Array{Int64}(undef, N) for sym in sym_list)
+    res = OrderedDict(sym => Array{Int64}(undef, N) for sym in sym_list)
 
     for sym in sym_list
         for i=1:N
