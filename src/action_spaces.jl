@@ -9,6 +9,14 @@ mutable struct ActionSpace
     not_equal::OrderedDict{Symbol, Array{Float64,1}}
 end
 
+mutable struct DiscreteActionSpace
+    feasible::OrderedDict{Symbol, Array{Int64, 1}}
+end
+
+function DiscreteActionSpace(bounds::Pair...)
+    DiscreteActionSpace(OrderedDict(bounds...))
+end
+
 # Construct an action space struct form a pair of symbols and min/max bounds
 function ActionSpace(bounds::Pair...)
     bounds = OrderedDict(bounds...)
@@ -21,6 +29,8 @@ end
 
 # Construct an actions space from just one symbol in another action space
 ActionSpace(A::ActionSpace, a::Symbol) = ActionSpace(OrderedDict(a => A.bounds[a]), OrderedDict(a => A.not_equal[a]))
+DiscreteActionSpace(A::DiscreteActionSpace, a::Symbol) = DiscreteActionSpace(OrderedDict(a => A.feasible[a]))
+
 
 Constraint = Pair{Expr, Bool}
 Constraints = Array{Constraint}
@@ -28,7 +38,9 @@ Constraints = Array{Constraint}
 
 # Get the action dimension of A
 syms(A::ActionSpace) = collect(keys(A.bounds))
+syms(A::DiscreteActionSpace) = collect(keys(A.feasible))
 action_dim(A::ActionSpace) = length(syms(A))
+action_dim(A::DiscreteActionSpace) = length(syms(A))
 
 
 
@@ -43,6 +55,9 @@ function action_space_valid(A::ActionSpace)
     end
     true
 end
+
+action_space_valid(A::DiscreteActionSpace) = all(.!isempty.(values(A.feasible)))
+
 
 # Induce the specified constraint on the minimum boundary
 # If the new constraint is weaker then ignore it
@@ -88,15 +103,34 @@ function constrain_action_space!(A::ActionSpace, constraint::Constraint)
     end
 end
 
+
+function constrain_action_space!(A::DiscreteActionSpace, constraint::Constraint)
+    expr, truthval = constraint
+    head, sym, val = (expr.head == :call) ? expr.args : [expr.head, expr.args...]
+    if isa(val, Expr)
+        val = eval(val)
+    end
+    val = Meta.eval(val)
+    if head == Symbol(".==")
+        if truthval
+            A.feasible[sym] = [val]
+        else
+            deleteat!(A.feasible[sym], findfirst(A.feasible[sym] .== val))
+        end
+    else
+        @error string("Unknown expression ", expr)
+    end
+end
+
 # Apply the provided constraints to modify an action space
-function constrain_action_space!(A::ActionSpace, constraints::Constraints)
+function constrain_action_space!(A, constraints::Constraints)
     for constraint in constraints
-        constrain_action_space!(A::ActionSpace, constraint)
+        constrain_action_space!(A, constraint)
     end
 end
 
 # Generate a new action space (deepcopy of input) and then constrain it
-function constrain_action_space(A::ActionSpace, constraints::Constraints)
+function constrain_action_space(A, constraints::Constraints)
     Ac = deepcopy(A)
     constrain_action_space!(Ac, constraints)
     Ac
@@ -112,3 +146,10 @@ function sample_sym_comparison(A::ActionSpace, op::Symbol)
     val = sample_uniform_action(A, sym)
     Expr(:call, op, sym, val)
 end
+
+function sample_sym_comparison(A::DiscreteActionSpace, op::Symbol)
+    sym = rand(syms(A))
+    val = rand(A.feasible[sym])
+    Expr(:call, op, sym, val)
+end
+

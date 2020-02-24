@@ -86,9 +86,9 @@ end
 # Takes the constraints at each timestep and turns them into an action space
 # at each timestep. Returns the action space at each timestep and bool indicating
 # whether all of the timesteps have a valid action space
-function gen_action_spaces(A, constraints)
+function gen_action_spaces(A::Atype, constraints) where Atype
     N = length(constraints)
-    aspaces = Array{ActionSpace}(undef, N)
+    aspaces = Array{Atype}(undef, N)
     valid_flag = Array{Bool}(undef, N)
     for i in 1:N
         aspaces[i] = constrain_action_space(A, constraints[i])
@@ -115,13 +115,36 @@ end
 # dist - sampling distribution that can handle constraints
 # x - locations at which to sample (important if there are temporal correlations)
 # n - Number of samples per action
-function sample_series(A_series, x, dist)
+function sample_series(A_series::Array{ActionSpace}, x, dist)
     @assert length(A_series) == length(x)
     lu_neq, sym_list, N = get_lu_neq(A_series), syms(A_series[1]), length(A_series)
     res = Dict(sym => Array{Float64}(undef, N) for sym in sym_list)
 
     for sym in sym_list
         res[sym] .= dist(x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq)
+    end
+    res
+end
+
+function sample_discrete(A::DiscreteActionSpace, sym, dist::Dict{Int, Float64})
+    probs = zeros(length(dist))
+    for i in A.feasible[sym]
+        probs[i] = dist[i]
+    end
+    probs ./= sum(probs)
+    return rand(Categorical(probs))
+end
+
+
+function sample_series(A_series::Array{DiscreteActionSpace}, x, dist::Dict{Int, Float64})
+    @assert length(A_series) == length(x)
+    sym_list, N = syms(A_series[1]), length(A_series)
+    res = Dict(sym => Array{Int64}(undef, N) for sym in sym_list)
+
+    for sym in sym_list
+        for i=1:N
+            res[sym][i] = sample_discrete(A_series[i], sym, dist)
+        end
     end
     res
 end
@@ -136,6 +159,7 @@ function sample_series(ex, A, x, dist, sym_data = Dict(); max_trials_for_valid =
     constraints = gen_constraints(leaves, N, sym_data)
     for i in 1:max_trials_for_valid
         action_spaces, valid = gen_action_spaces(A, constraints)
+        println("valid: ", valid)
         (valid) && return sample_series(action_spaces, x, dist)
     end
     throw(InvalidExpression("Expression was invalid"))
