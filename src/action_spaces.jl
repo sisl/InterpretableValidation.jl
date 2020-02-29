@@ -112,8 +112,10 @@ function constrain_action_space!(A::DiscreteActionSpace, constraint::Constraint)
     end
     val = Meta.eval(val)
     if head == Symbol(".==")
-        if truthval
+        if truthval &&  val in A.feasible[sym]
             A.feasible[sym] = [val]
+        elseif truthval
+            A.feasible[sym] = []
         else
             deleteat!(A.feasible[sym], findfirst(A.feasible[sym] .== val))
         end

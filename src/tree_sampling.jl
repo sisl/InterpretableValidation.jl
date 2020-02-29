@@ -159,7 +159,6 @@ function sample_series(ex, A, x, dist, sym_data = Dict(); max_trials_for_valid =
     constraints = gen_constraints(leaves, N, sym_data)
     for i in 1:max_trials_for_valid
         action_spaces, valid = gen_action_spaces(A, constraints)
-        println("valid: ", valid)
         (valid) && return sample_series(action_spaces, x, dist)
     end
     throw(InvalidExpression("Expression was invalid"))
