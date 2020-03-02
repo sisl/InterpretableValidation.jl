@@ -4,19 +4,6 @@ using LinearAlgebra
 import Base.+
 import Base.-
 
-struct PedestrianModel
-    cov_ax::Float64
-    cov_ay::Float64
-    cov_noise_x::Float64
-    cov_noise_y::Float64
-    cov_noise_vx::Float64
-    cov_noise_vy::Float64
-end
-
-PedestrianModel(cov_ax, cov_ay, cov_noise) = PedestrianModel(cov_ax, cov_ay, cov_noise, cov_noise, cov_noise, cov_noise)
-
-to_array(pm::PedestrianModel) = [pm.cov_ax, pm.cov_ay, pm.cov_noise_x, pm.cov_noise_y, pm.cov_noise_vx, pm.cov_noise_vy]
-
 mutable struct Agent
     pos::MVector{2, Float64}
     vel::MVector{2,Float64}
@@ -54,29 +41,26 @@ struct AVSimulator
     min_dist::MVector{2,Float64}
 end
 
-AVSimulator(dt = 0.1, alpha = 0.85, beta = 0.005, v_des = 11.17, delta = 4.0, t_headway = 1.5, a_max = 3.0, s_min = 4.0, d_cmf = 2.0, d_max = 9.0, min_dist_x = 2.5, min_dist_y = 1.4) = AVSimulator(dt, alpha, beta, v_des, delta, t_headway, a_max, s_min, d_cmf, d_max, MVector{2}([min_dist_x, min_dist_y]))
+AVSimulator(dt = 0.2, alpha = 0.85, beta = 0.005, v_des = 11.17, delta = 4.0, t_headway = 1.5, a_max = 3.0, s_min = 4.0, d_cmf = 2.0, d_max = 9.0, min_dist_x = 2.5, min_dist_y = 1.4) = AVSimulator(dt, alpha, beta, v_des, delta, t_headway, a_max, s_min, d_cmf, d_max, MVector{2}([min_dist_x, min_dist_y]))
 
-function M_dist(model, action)
-    a_arr = to_array(action)
-    return -mahalanobis(a_arr, zeros(size(a_arr)), inv(diagm(0 => to_array(model))))
+# function M_dist(model, action)
+#     a_arr = to_array(action)
+#     return -mahalanobis(a_arr, zeros(size(a_arr)), inv(diagm(0 => to_array(model))))
+# end
+
+function compute_reward(actions, is_goal, model)
+    @assert length(actions[1]) == 1
+    avecs = [to_array(a) for a in actions]
+    p1 = pdf(model[:ax], [a[1] for a in avecs])
+    p2 = pdf(model[:ay], [a[2] for a in avecs])
+    p3 = pdf(model[:nx], [a[3] for a in avecs])
+    p4 = pdf(model[:ny], [a[4] for a in avecs])
+    p5 = pdf(model[:nvx], [a[5] for a in avecs])
+    p6 = pdf(model[:nvy], [a[6] for a in avecs])
+    reward = -is_goal*p1*p2*p3*p4*p5*p6
 end
 
-function compute_reward(actions, is_goal, dist_heuristic, model)
-    reward = 0
-    # Before the end of the episode
-    for a in actions
-        m = M_dist(model , a)
-        reward += m
-    end
-
-    # No crash give the low reward
-    if !is_goal
-        reward += -10000 - 1000*dist_heuristic
-    end
-    reward
-end
-
-function simulate(sim::AVSimulator, actions::Array{Action, 1}, car0::Agent, peds0::Array{Agent}, model::PedestrianModel)
+function simulate(sim::AVSimulator, actions::Array{Action, 1}, car0::Agent, peds0::Array{Agent}, model)
     car, peds = deepcopy(car0), deepcopy(peds0)
     npeds = length(peds)
     @assert npeds == length(actions[1])
@@ -104,13 +88,13 @@ function simulate(sim::AVSimulator, actions::Array{Action, 1}, car0::Agent, peds
 
         # check if a crash has occurred. If so return the timestep, otherwise continue
         if is_goal(peds, car, sim.min_dist)
-            r = compute_reward(actions[1:ai], true, NaN, model)
+            r = compute_reward(actions, true, model)
             return r, car_traj, ped_traj
         end
         ai += 1
     end
 
-    r = compute_reward(actions, false, closest_dist(peds, car), model)
+    r = compute_reward(actions, false, model)
     r, car_traj, ped_traj
 end
 

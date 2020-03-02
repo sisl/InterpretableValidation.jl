@@ -10,6 +10,13 @@ function sample_constrained_gp(k, Xν::Array{Float64}, l::Array{Float64}, u::Arr
     sample_constrained_gp((x)->constraint_mean, k, X, y, Xν, Xν, l, u, σ2; n = n)
 end
 
+function gp_prob(X, k, m, y)
+    μ_vals = μ(X, m)
+    Σ = K(X, X, k)
+    pdf(MvNormal(μ_vals, Σ), y)
+end
+
+
 # m - The mean function
 # k - The kernel
 # X - observation points

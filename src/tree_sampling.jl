@@ -121,7 +121,13 @@ function sample_series(A_series::Array{ActionSpace}, x, dist)
     res = Dict(sym => Array{Float64}(undef, N) for sym in sym_list)
 
     for sym in sym_list
-        res[sym] .= dist(x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq)
+        if isa(dist, Function)
+            res[sym] .= dist(x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq)
+        elseif isa(dist, Dict{Symbol, Function})
+            res[sym] .= dist[sym](x, lu_neq[sym].l,  lu_neq[sym].u, lu_neq[sym].neq)
+        else
+            error("unrecognized distribution")
+        end
     end
     res
 end
