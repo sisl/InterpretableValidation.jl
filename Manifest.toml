@@ -33,6 +33,12 @@ version = "2.8.7"
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
+[[BeliefUpdaters]]
+deps = ["POMDPModelTools", "POMDPs", "Random", "Statistics", "StatsBase"]
+git-tree-sha1 = "4d082b230d719baefbfc5c599d03ad6afd48e3d5"
+uuid = "8bb6e9a1-7d73-552c-a44a-e5dc5634aac4"
+version = "0.2.0"
+
 [[CPUTime]]
 deps = ["Compat"]
 git-tree-sha1 = "bdaf1b7ecf8eb6fb3843a1b0d3fccc5f727a49fd"
@@ -260,6 +266,11 @@ git-tree-sha1 = "928b8ca9b2791081dc71a51c55347c27c618760f"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "0.3.3"
 
+[[NamedTupleTools]]
+git-tree-sha1 = "f66a90ab9cf2b8d8cb44c3e26ff1071240e115be"
+uuid = "d9ec5142-1e00-5aa0-9d6a-321866360f50"
+version = "0.13.3"
+
 [[Nullables]]
 git-tree-sha1 = "8f87854cc8f3685a60689d8edecaa29d2251979b"
 uuid = "4d1e1d77-625e-5b40-9113-a560ec7a8ecd"
@@ -288,6 +299,30 @@ git-tree-sha1 = "2fc6f50ddd959e462f0a2dbc802ddf2a539c6e35"
 uuid = "90014a1f-27ba-587c-ab20-58faa44d9150"
 version = "0.9.12"
 
+[[POMDPModelTools]]
+deps = ["Distributions", "LinearAlgebra", "POMDPs", "Random", "SparseArrays", "Statistics", "UnicodePlots"]
+git-tree-sha1 = "0c6126f6875d38125621ea88a8380aa31a061349"
+uuid = "08074719-1b2a-587c-a292-00f91cc44415"
+version = "0.2.3"
+
+[[POMDPPolicies]]
+deps = ["BeliefUpdaters", "LinearAlgebra", "POMDPModelTools", "POMDPs", "Parameters", "Random", "SparseArrays", "StatsBase"]
+git-tree-sha1 = "f9859e9213a8856519361a87b6ce0ba9a60041d0"
+uuid = "182e52fb-cfd0-5e46-8c26-fd0667c990f4"
+version = "0.3.2"
+
+[[POMDPSimulators]]
+deps = ["BeliefUpdaters", "DataFrames", "Distributed", "NamedTupleTools", "POMDPModelTools", "POMDPPolicies", "POMDPs", "ProgressMeter", "Random"]
+git-tree-sha1 = "2bb5ab4f16f206fac3c05e7fff070bfc99f8dbb9"
+uuid = "e0d0a172-29c6-5d4e-96d0-f262df5d01fd"
+version = "0.3.1"
+
+[[POMDPs]]
+deps = ["Distributions", "LibGit2", "LightGraphs", "Logging", "NamedTupleTools", "Pkg", "Random", "Statistics"]
+git-tree-sha1 = "3e0378aa72d29b881f95f16e5f92e8edc54ba69d"
+uuid = "a93abf59-7444-517b-a68a-c42f96afdd7d"
+version = "0.8.3"
+
 [[Parameters]]
 deps = ["OrderedCollections", "UnPack"]
 git-tree-sha1 = "38b2e970043613c187bd56a995fe2e551821eb4a"
@@ -313,6 +348,12 @@ version = "0.5.3"
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[ProgressMeter]]
+deps = ["Distributed", "Printf"]
+git-tree-sha1 = "b3cb8834eee5410c7246734cc6f4f586fe0dc50e"
+uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
+version = "1.3.0"
 
 [[QuadGK]]
 deps = ["DataStructures", "LinearAlgebra"]
@@ -458,6 +499,12 @@ version = "1.0.1"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+
+[[UnicodePlots]]
+deps = ["Dates", "Random", "SparseArrays", "StatsBase", "Test"]
+git-tree-sha1 = "b8e58d4390ccebfa4f3bf502a45e08066eec3bf9"
+uuid = "b8865327-cd53-5732-bb35-84acbb429228"
+version = "1.1.0"
 
 [[WeakRefStrings]]
 deps = ["DataAPI", "Random", "Test"]

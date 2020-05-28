@@ -7,6 +7,9 @@ module InterpretableValidation
     using ExprOptimization
     using Parameters
     using Random
+    using POMDPs
+    using POMDPSimulators
+    using POMDPPolicies
 
     # mvrandn
     export mvrandn_μ, mvrandn
@@ -32,5 +35,9 @@ module InterpretableValidation
     # Optimization and Grammar
     export loss_fn, sample_comparison, create_grammar, default_comparison_distribution, optimize
     include("optimization.jl")
+
+    # POMDP support
+    export PlaybackPolicy, discrete_action_mdp
+    include("pomdp_support.jl")
 end
 
