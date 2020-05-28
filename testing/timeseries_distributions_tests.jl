@@ -36,13 +36,15 @@ v = rand(Random.GLOBAL_RNG, categorical, fill([1], 100))
 @test all(v.==1)
 
 ## GaussianProcess Tests
-gp = GaussianProcess(m = (x) -> 0, k = squared_exp_kernel(l=4), x = x)
+gp = GaussianProcess(m = (x) -> 0, k = squared_exp_kernel(l=100), x = x)
 
 @test gp.m(gp.x) == 0
 @test gp.k(gp.x[1], gp.x[1]) == 1
 @test gp.k(gp.x[1], gp.x[2]) < 1
 @test gp.x == x
 @test gp.σ2 == 1e-6
+
+@test logpdf(gp, rand(100)) < 0
 
 v = rand(Random.GLOBAL_RNG, gp)
 @test length(v) == 100

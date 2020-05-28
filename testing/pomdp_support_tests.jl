@@ -4,6 +4,7 @@ using POMDPModels
 using POMDPPolicies
 using POMDPSimulators
 using Test
+using Distributions
 
 
 mdp = SimpleGridWorld(tprob = 1)
@@ -20,11 +21,12 @@ hist2 = simulate(HistoryRecorder(), mdp, playback, GWPos(3,3))
 
 action(playback, GWPos(3,3))
 
-t, fn = discrete_action_mdp(mdp, 1000)
+t, fn = discrete_action_mdp(mdp, 1000, use_prob = false)
 @test length(t) == 1
 @test collect(keys(t))[1] == :a
 @test all([t[:a].feasible[i] == [1,2,3,4] for i=1:100])
 
 d = rand(t)
+lnp = logpdf(t, d)
 fn(d)
 

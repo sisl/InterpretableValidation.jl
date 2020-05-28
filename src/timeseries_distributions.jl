@@ -115,8 +115,8 @@ end
 
 # Get the log probability of the sample point
 function Distributions.logpdf(gp::GaussianProcess, y::Array{Float64})
-    μ_vals = μ(gp.x, gp.k)
-    Σ = K(gp.x, gp.x, gp.k)
+    μ_vals = μ(gp.x, gp.m)
+    Σ = K(gp.x, gp.x, gp.k) .+ gp.σ2*Matrix(I, N_pts(gp), N_pts(gp))
     logpdf(MvNormal(μ_vals, Σ), y)
 end
 

@@ -59,6 +59,9 @@ end
 # Defines a Multivariate, constrained time series distribution
 MvTimeseriesDistribution = Dict{Symbol, ConstrainedTimeseriesDistribution}
 
+# Logpdf of a MvTimeseries sample according to the provided distribution
+Distributions.logpdf(t::MvTimeseriesDistribution, y::Dict{Symbol, Array{Float64}}) = sum([logpdf(t[sym].timeseries_distribution, y[sym]) for sym in keys(t)])
+
 # Check the validity of the constraints
 isfeasible(t::MvTimeseriesDistribution) = all(isfeasible.(values(t)))
 
