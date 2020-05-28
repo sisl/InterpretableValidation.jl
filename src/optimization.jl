@@ -36,18 +36,18 @@ function sample_comparison(comparison_distribution::Dict{Symbol, Distribution}, 
 end
 
 # Function that returns the grammar for producing expressions of length N
-function grammar()
-    println("To use this grammar, define N, comparison_distribution, and rng")
+function create_grammar()
     @grammar begin
         R = (R && R) | (R || R) # "and" and "or" expressions for scalar values
         R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
         R = any_between(τ, C, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
-        C = _(rand(rng, 1:N))
+        C = _(rand(rng, 1:GRAMMAR_N))
         τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
-        τ = _(sample_comparison(comparison_distribution, rng))
+        τ = _(sample_comparison(GRAMMAR_comparison_distribution, GRAMMAR_rng))
     end
 end
 
+# Creates a standard loss function that samples trials and uses eval_fn to compute average loss
 function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRNG = Random.GLOBAL_RNG, trials_per_expression = 10, max_loss = 1e9)
     function loss(rn::RuleNode, grammar::Grammar)
         ex = get_executable(rn, grammar)
@@ -62,5 +62,26 @@ function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRN
         end
         total_loss/trials_per_expression
     end
+end
+
+# Wrapper for the optimization function
+function optimize(eval_fn::Function,
+                  d::MvTimeseriesDistribution;
+                  rng::AbstractRNG = Random.GLOBAL_RNG,
+                  loss = loss_fn(eval_fn, d, rng = rng),
+                  Npop = 1000,
+                  Niter = 30,
+                  max_depth = 10,
+                  opt = GeneticProgram(Npop, Niter, max_depth, 0.3, 0.3, 0.4),
+                  comparison_distribution = default_comparison_distribution(d),
+                  grammar = create_grammar(),
+                  verbose = true
+                 )
+  # setup the global variables that the grammar uses
+  global GRAMMAR_N = N_pts(d)
+  global GRAMMAR_comparison_distribution = comparison_distribution
+  global GRAMMAR_rng = rng
+
+  ExprOptimization.optimize(opt, grammar, :R, loss, verbose = verbose)
 end
 

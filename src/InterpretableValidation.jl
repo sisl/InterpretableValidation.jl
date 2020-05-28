@@ -4,6 +4,7 @@ module InterpretableValidation
     using SpecialFunctions
     using NLsolve
     using ExprRules
+    using ExprOptimization
     using Parameters
     using Random
 
@@ -29,8 +30,7 @@ module InterpretableValidation
     include("constrained_distributions.jl")
 
     # Optimization and Grammar
-    export loss_fn, sample_comparison, grammar, default_comparison_distribution
+    export loss_fn, sample_comparison, create_grammar, default_comparison_distribution, optimize
     include("optimization.jl")
-
 end
 

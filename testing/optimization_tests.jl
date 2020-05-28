@@ -3,6 +3,7 @@ using Test
 using Distributions
 using Random
 using ExprRules
+
 rng = Random.GLOBAL_RNG
 x = collect(1:100.)
 N = length(x)
@@ -37,7 +38,7 @@ for i=1:100
 end
 
 # Test the grammar rules and grammar sampling
-g = grammar()
+g = create_grammar()
 @test g.rules[1] == Meta.parse("R && R")
 @test g.rules[5] == Meta.parse("any_between(τ, C, C)")
 @test g.iseval[7]
@@ -45,10 +46,16 @@ g = grammar()
 
 
 # Test the loss function
+GRAMMAR_N = N
+GRAMMAR_comparison_distribution = comparison_distribution
+GRAMMAR_rng = rng
 ev(t::Dict{Symbol, Array{Float64}}) = sum(sum.(values(t)))
 ev(rand(mvts))
 rn = rand(RuleNode, g, :R, 3)
 get_executable(rn, g)
 loss = loss_fn(ev, mvts)
 @test loss(rn, g) > 0
+
+results = optimize((x) -> rand(), mvts, Npop=10, Niter=3, verbose = false)
+@test results.loss > 0
 
