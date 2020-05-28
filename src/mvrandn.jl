@@ -1,10 +1,4 @@
 ## This file is adapted from the code: https://www.mathworks.com/matlabcentral/fileexchange/53796-truncated-normal-and-student-s-t-distribution-toolbox
-using Distributions
-using LinearAlgebra
-using SpecialFunctions
-using NLsolve
-using DataStructures
-
 # Computes logarithm of tail of Z~N(0,1) mitigating numerical roundoff errors
 lnPhi(x) = -0.5 * x^2 - 0.69314718055994530941723212 +
             log(erfcx(x / 1.4142135623730950488016887242))
@@ -20,7 +14,7 @@ function lnNpr(a, b)
 end
 
 # Sample random number from truncated normal distribution with l < x < u
-trandn(l, u) = rand(Truncated(Normal(), l, u), 1)[1]
+trandn(rng::AbstractRNG, l, u) = rand(rng, Truncated(Normal(), l, u), 1)[1]
 
 # Generates the proposals from the exponentially tilted sequential importance sampling pdf
 # input: n is the number of samples
@@ -30,7 +24,7 @@ trandn(l, u) = rand(Truncated(Normal(), l, u), 1)[1]
 #        mu is ?
 # output:    'p', log-likelihood of sample
 #             Z, random sample
-function mvnrnd(n, L, l, u, mu)
+function mvnrnd(rng::AbstractRNG, n, L, l, u, mu)
     d = length(l)
     p, Z = 0, zeros(d,n)
     for k = 1:d
@@ -42,7 +36,7 @@ function mvnrnd(n, L, l, u, mu)
         tu = u[k] .- mu[k] .- col
 
         # simulate N(mu,1) conditional on [tl,tu]
-        Z[k,:] .= mu[k] .+ trandn.(tl, tu)
+        Z[k,:] .= mu[k] .+ trandn.(rng, tl, tu)
 
         # update likelihood ratio
         p = p .+ lnNpr.(tl, tu) .+ 0.5*mu[k]^2 .- mu[k]*Z[k,:]
@@ -164,7 +158,7 @@ function cholperm(Σ_in, l, u)
         @assert length(tl) == 1 && length(tu) == 1 && length(w) == 1
         z[j] = (exp(-.5*tl[1]^2 - w[1]) - exp(-5*tu[1]^2. - w[1]))/sqrt(2*pi)
     end
-    return L, l, u, perm
+    L, l, u, perm
 end
 
 
@@ -184,7 +178,7 @@ end
 # See also: mvNcdf, mvNqmc, mvrorth
 # For more help, see <a href="matlab:
 # doc">Truncated Multivariate Student & Normal</a> documentation at the bottom.
-function mvrandn(l, u, Σ, n)
+function mvrandn(rng::AbstractRNG, l, u, Σ, n)
     # basic input check
     d = length(l)
     if  length(u) != d || size(Σ) != (d,d) || any(l > u)
@@ -218,7 +212,7 @@ function mvrandn(l, u, Σ, n)
     rv, accept, iter = zeros(d, 0), 0, 0
 
     while accept < n #  while # of accepted is less than n
-        logpr, Z = mvnrnd(n, L, l, u, mu) # simulate n proposals
+        logpr, Z = mvnrnd(rng, n, L, l, u, mu) # simulate n proposals
         idx = -log.(rand(n)) .> (psistar .- logpr) #acceptance tests
         rv = hcat(rv, Z[:, idx]) #accumulate accepted
         accept = size(rv,2) #keep track of # of accepted
@@ -237,8 +231,9 @@ function mvrandn(l, u, Σ, n)
     rv = rv[order,:] # reverse the Cholesky permutation
 end
 
-function mvrandn_μ(μ, l, u, Σ, n)
-    Y = mvrandn(l - μ, u - μ, Σ, n)
+# Samples a constrained mvrandn with a nonzero mean
+function mvrandn_μ(rng::AbstractRNG, μ, l, u, Σ, n)
+    Y = mvrandn(rng, l - μ, u - μ, Σ, n)
     return Y .+ μ
 end
 

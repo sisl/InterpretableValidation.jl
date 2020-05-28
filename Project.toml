@@ -1,0 +1,14 @@
+name = "InterpretableValidation"
+uuid = "790c9180-cc2c-49df-8fe5-9d2c4cf5a88a"
+authors = ["Anthony Corso <anthonycorso92@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+ExprOptimization = "0d84ce59-e78b-5c9a-b954-3a5400d7f6ed"
+ExprRules = "e7058ba0-a568-556c-b31a-209ee9d855a8"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+NLsolve = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
