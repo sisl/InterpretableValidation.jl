@@ -16,11 +16,12 @@ function POMDPs.action(p::PlaybackPolicy, s)
 end
 
 # Function to generate the MvTimeseriesDistribution and eval function for a mdp with discrete actions
-function discrete_action_mdp(mdp, N::Int64; backup_policy = RandomPolicy(mdp), rng = Random.GLOBAL_RNG, use_prob = true)
+function discrete_action_mdp(mdp, N::Int64; backup_policy = RandomPolicy(mdp), rng = Random.GLOBAL_RNG, use_prob = true, action_probability = nothing)
     x = collect(1.:N)
-    t = MvTimeseriesDistribution(:a => IID(x, Categorical(length(actions(mdp)))))
+    as = actions(mdp)
+    d = (use_prob) ? Categorical([action_probability(mdp, a) for a in as]) : Categorical(length(as))
+    t = MvTimeseriesDistribution(:a => IID(x, d))
     f = function eval_fn(d::Dict{Symbol, Array{Float64}})
-        lnp =
         as = actions(mdp)[d[:a]]
         r = simulate(RolloutSimulator(rng), mdp, PlaybackPolicy(as, backup_policy))
         (use_prob) ? -log(r) - logpdf(t, d) : -r

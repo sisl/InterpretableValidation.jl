@@ -11,7 +11,7 @@ function default_comparison_distribution(t::MvTimeseriesDistribution; σ_factor 
             comparison_distribution[sym] = Uniform(d.μ - σ_factor*d.σ, d.μ + σ_factor*d.σ)
         elseif dist isa IID{Categorical{Float64, Array{Float64,1}}}
             d = dist.distribution
-            comparison_distribution[sym] = Categorical(d.p)
+            comparison_distribution[sym] = Categorical(length(d.p)) # make it uniformly probable
         elseif dist isa GaussianProcess
             μ = mean([mean(rand(dist)) for i=1:50])
             σ = mean([std(rand(dist)) for i=1:50])
@@ -41,9 +41,9 @@ function create_grammar()
         R = (R && R) | (R || R) # "and" and "or" expressions for scalar values
         R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
         R = any_between(τ, C, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
-        C = _(rand(rng, 1:GRAMMAR_N))
+        C = _(rand(InterpretableValidation.GRAMMAR_rng, 1:InterpretableValidation.GRAMMAR_N))
         τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
-        τ = _(sample_comparison(GRAMMAR_comparison_distribution, GRAMMAR_rng))
+        τ = _(sample_comparison(InterpretableValidation.GRAMMAR_comparison_distribution, InterpretableValidation.GRAMMAR_rng))
     end
 end
 
@@ -64,6 +64,12 @@ function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRN
     end
 end
 
+function set_global_grammar_params(N, comparison_distribution, rng)
+    global GRAMMAR_N = N
+    global GRAMMAR_comparison_distribution = comparison_distribution
+    global GRAMMAR_rng = rng
+end
+
 # Wrapper for the optimization function
 function optimize(eval_fn::Function,
                   d::MvTimeseriesDistribution;
@@ -78,10 +84,7 @@ function optimize(eval_fn::Function,
                   verbose = true
                  )
   # setup the global variables that the grammar uses
-  global GRAMMAR_N = N_pts(d)
-  global GRAMMAR_comparison_distribution = comparison_distribution
-  global GRAMMAR_rng = rng
-
+  set_global_grammar_params(N_pts(d), comparison_distribution, rng)
   ExprOptimization.optimize(opt, grammar, :R, loss, verbose = verbose)
 end
 

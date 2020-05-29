@@ -33,7 +33,7 @@ module InterpretableValidation
     include("constrained_distributions.jl")
 
     # Optimization and Grammar
-    export loss_fn, sample_comparison, create_grammar, default_comparison_distribution, optimize
+    export loss_fn, sample_comparison, create_grammar, default_comparison_distribution, optimize, set_global_grammar_params
     include("optimization.jl")
 
     # POMDP support

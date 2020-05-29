@@ -9,7 +9,7 @@ x = collect(1:100.)
 N = length(x)
 uniform = ConstrainedTimeseriesDistribution(IID(x, Uniform(2,3)))
 normal = ConstrainedTimeseriesDistribution(IID(x, Normal(0.5, 1.)))
-categorical = ConstrainedTimeseriesDistribution(IID(x, Categorical(5)))
+categorical = ConstrainedTimeseriesDistribution(IID(x, Categorical([0.1, 0.3, 0.2, 0.2, 0.2])))
 gp = ConstrainedTimeseriesDistribution(GaussianProcess(m = (x) -> 0, k = squared_exp_kernel(l=4), x = x))
 mvts = MvTimeseriesDistribution(:x => uniform, :y => normal, :z => categorical, :gp =>gp)
 
@@ -46,9 +46,7 @@ g = create_grammar()
 
 
 # Test the loss function
-GRAMMAR_N = N
-GRAMMAR_comparison_distribution = comparison_distribution
-GRAMMAR_rng = rng
+set_global_grammar_params(N, comparison_distribution, rng)
 ev(t::Dict{Symbol, Array{Float64}}) = sum(sum.(values(t)))
 ev(rand(mvts))
 rn = rand(RuleNode, g, :R, 3)
