@@ -47,13 +47,34 @@ g = create_grammar()
 
 # Test the loss function
 set_global_grammar_params(N, comparison_distribution, rng)
-ev(t::Dict{Symbol, Array{Float64}}) = sum(sum.(values(t)))
+ev(t::Dict{Symbol, Array}) = sum(sum.(values(t)))
 ev(rand(mvts))
 rn = rand(RuleNode, g, :R, 3)
-get_executable(rn, g)
 loss = loss_fn(ev, mvts)
 @test loss(rn, g) > 0
 
 results = optimize((x) -> rand(), mvts, Npop=10, Niter=3, verbose = false)
 @test results.loss > 0
+
+# Sample until we have a feasible rule
+max_tries, trial = 1000, 1
+while true
+    trial > max_tries && break
+    global rn = rand(RuleNode, g, :R, 3)
+    constraints = sample_constraints(get_executable(rn, g), N_pts(mvts), Random.GLOBAL_RNG)
+    mvts2 = deepcopy(mvts)
+    constrain_timeseries!(mvts2, constraints)
+    isfeasible(mvts2) && break
+end
+ex = get_executable(rn, g)
+constraints = sample_constraints(ex, N_pts(mvts), Random.GLOBAL_RNG)
+mvts2 = deepcopy(mvts)
+constrain_timeseries!(mvts2, constraints)
+@test isfeasible(mvts2)
+
+loss = loss_fn((x) -> throw(error("itsaerror")), mvts)
+@test_throws ErrorException loss(rn, g)
+
+loss = loss_fn((x) -> throw(InfeasibleConstraint("itsaerror")), mvts)
+@test loss(rn, g) == 1e9
 

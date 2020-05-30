@@ -34,3 +34,6 @@ aprob = Dict(:up =>0.1, :down => 0.1, :left =>0.1, :right=>0.7)
 t, fn = discrete_action_mdp(mdp, 1000, use_prob = true, action_probability = (mdp, a) -> aprob[a])
 @test t[:a].timeseries_distribution.distribution.p == [0.1, 0.1, 0.1, 0.7]
 
+h = sample_history(Meta.parse("any(a .== 2)"), t, mdp)
+@test h isa SimHistory
+

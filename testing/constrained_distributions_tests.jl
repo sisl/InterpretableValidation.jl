@@ -78,8 +78,9 @@ lessthan!(uniform, 4., [fill(true, 50)..., fill(false, 50)...])
 
 uniform.lb = -Inf*ones(100)
 uniform.ub = Inf*ones(100)
-continuous_equality!(uniform, 4., [fill(true, 50)..., fill(:anybool, 50)...])
+continuous_equality!(uniform, 3., [fill(true, 50)..., fill(:anybool, 50)...])
 @test all(uniform.lb[1:50] .== uniform.ub[1:50])
+@test all(rand(uniform)[1:50] .== 3.)
 
 discrete_equality!(categorical, 3, [:anybool, fill(true, 50)..., fill(false, 49)...])
 @test categorical.feasible[1] == [1,2,3,4,5]
@@ -109,11 +110,11 @@ v = Base.rand(Random.GLOBAL_RNG, Meta.parse("all(x .>= 1.) && all(y .>= 1.) && a
 @test all(v[:y] .> 1.)
 @test all(v[:z] .== 2)
 
-@test_throws ErrorException Base.rand(Random.GLOBAL_RNG, Meta.parse("all(x .>= 1.) && all(x .<= 0.5)"), mvts)
+@test_throws InfeasibleConstraint Base.rand(Random.GLOBAL_RNG, Meta.parse("all(x .>= 1.) && all(x .<= 0.5)"), mvts)
 
 mvts = MvTimeseriesDistribution(:x => IID(x, Uniform()), :y => IID(x, Normal()), :z => IID(x, Categorical(5)))
 
-function target_expr(data::Dict{Symbol, Array{Float64}})
+function target_expr(data::Dict{Symbol, Array})
     truth_vals = ((data[:x] .> 0.75) .& (data[:y] .< -0.75)) .| ((data[:x] .< 0.25) .& (data[:y] .> -0.25))
     truth_vals[1] = truth_vals[1] &&  (data[:z][1] == 5)
     return (length(truth_vals) - sum(truth_vals)) / length(truth_vals)
@@ -121,5 +122,12 @@ end
 
 good_expr = Meta.parse("all(((x .>= 0.75) .& (y .<= -0.75)) .| ((x .<= 0.25) .& (y .>= -0.25)))")
 good_vals = rand(Random.GLOBAL_RNG, good_expr, mvts)
-@test target_expr(good_vals) <= 0.1
+@test target_expr(good_vals) <= 0.01
 
+
+expr = Meta.parse("all_between((x .== 2.881512049363103) .| (x .<= 2.3141385919362447), 59, 14)")
+constraints = sample_constraints(expr, 100, Random.GLOBAL_RNG)
+mvts = MvTimeseriesDistribution(:x => IID(x, Uniform(2,3)))
+good_vals = rand(Random.GLOBAL_RNG, expr, mvts)
+x = good_vals[:x]
+@test all_between((x .== 2.881512049363103) .| (x .<= 2.3141385919362447), 59, 14)

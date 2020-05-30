@@ -57,7 +57,11 @@ function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRN
                 timeseries = rand(rng, ex, d)
                 total_loss += eval_fn(timeseries)
             catch e
-                total_loss += max_loss
+                if e isa InfeasibleConstraint
+                    total_loss += max_loss
+                else
+                    throw(e)
+                end
             end
         end
         total_loss/trials_per_expression

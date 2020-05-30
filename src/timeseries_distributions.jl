@@ -18,7 +18,7 @@ function Base.rand(rng::AbstractRNG, iid::IID{Uniform{Float64}}, lb::Array{Float
     samples = Array{Float64}(undef, length(iid.x))
     l, u = max.(lb, iid.distribution.a),  min.(ub, iid.distribution.b)
     for i=1:length(iid.x)
-        samples[i] = rand(rng, Uniform(l[i], u[i]))
+        samples[i] = l[i] == u[i] ? l[i] : rand(rng, Uniform(l[i], u[i]))
     end
     samples
 end
@@ -27,7 +27,7 @@ end
 function Base.rand(rng::AbstractRNG, iid::IID{Normal{Float64}}, lb::Array{Float64} = -Inf*ones(N_pts(iid)), ub::Array{Float64} = Inf*ones(N_pts(iid)))
     samples = Array{Float64}(undef, length(iid.x))
     for i=1:length(iid.x)
-        samples[i] = rand(rng, Truncated(iid.distribution, lb[i], ub[i]))
+        samples[i] = lb[i] == ub[i] ? lb[i] : rand(rng, Truncated(iid.distribution, lb[i], ub[i]))
     end
     samples
 end

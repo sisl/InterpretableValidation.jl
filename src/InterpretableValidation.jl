@@ -28,7 +28,7 @@ module InterpretableValidation
 
     # Constrained Distributions
     export ConstrainedTimeseriesDistribution, isdiscrete, iscontinuous, isfeasible,
-           MvTimeseriesDistribution,
+           MvTimeseriesDistribution, InfeasibleConstraint,
            greaterthan!, lessthan!, continuous_equality!, discrete_equality!, constrain_timeseries!
     include("constrained_distributions.jl")
 
@@ -37,7 +37,7 @@ module InterpretableValidation
     include("optimization.jl")
 
     # POMDP support
-    export PlaybackPolicy, discrete_action_mdp
+    export PlaybackPolicy, discrete_action_mdp, sample_history
     include("pomdp_support.jl")
 end
 

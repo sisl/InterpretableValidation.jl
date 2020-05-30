@@ -27,7 +27,7 @@ function any_between_inv(out, i, j, N, rng::AbstractRNG)
     fill!(arr, :anybool)
     if out == true
         pt = rand(rng, min(i,j):max(i,j))
-        arr[1:pt] .= false
+        arr[1:pt-1] .= false
         arr[pt] = true
     elseif out == false
         arr[min(i,j):max(i,j)] .= false

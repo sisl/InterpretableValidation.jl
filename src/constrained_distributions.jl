@@ -60,7 +60,7 @@ end
 MvTimeseriesDistribution = Dict{Symbol, ConstrainedTimeseriesDistribution}
 
 # Logpdf of a MvTimeseries sample according to the provided distribution
-Distributions.logpdf(t::MvTimeseriesDistribution, y::Dict{Symbol, Array{Float64}}) = sum([logpdf(t[sym].timeseries_distribution, y[sym]) for sym in keys(t)])
+Distributions.logpdf(t::MvTimeseriesDistribution, y::Dict{Symbol, Array}) = sum([logpdf(t[sym].timeseries_distribution, y[sym]) for sym in keys(t)])
 
 # Check the validity of the constraints
 isfeasible(t::MvTimeseriesDistribution) = all(isfeasible.(values(t)))
@@ -98,7 +98,7 @@ function discrete_equality!(d::ConstrainedTimeseriesDistribution, val::Int64, tr
         if truthvals[i] == true
             d.feasible[i] = !isnothing(val_index) ? [val] : Int64[]
         elseif truthvals[i] == false
-            deleteat!(d.feasible[i], val_index)
+            !isnothing(val_index) && deleteat!(d.feasible[i], val_index)
         end
     end
 end
@@ -129,12 +129,20 @@ end
 
 # Samples a time series fromt the provided MvTimeseriesDistribution
 function Base.rand(rng::AbstractRNG, d::MvTimeseriesDistribution)
-    results = Dict{Symbol, Array{Float64}}()
+    results = Dict{Symbol, Array}()
     for (sym, const_dist) in d
         results[sym] = rand(rng, const_dist)
     end
     results
 end
+
+# Error type for infeasible constraint
+struct InfeasibleConstraint <: Exception
+    msg::String
+end
+
+# Printing for the error
+Base.showerror(io::IO, e::InfeasibleConstraint) = print(io, "Infeasible Constraint:  ", e.msg)
 
 # Tries to sample a time series that satisfies the expression from the provided MvTimeseriesDistribution
 function Base.rand(rng::AbstractRNG, expr::Expr, d::MvTimeseriesDistribution; validity_trials = 10)
@@ -145,5 +153,5 @@ function Base.rand(rng::AbstractRNG, expr::Expr, d::MvTimeseriesDistribution; va
         constrain_timeseries!(d2, constraints)
         isfeasible(d2) && return rand(rng, d2)
     end
-    throw(error("Couldn't find feasible constraints for ", expr))
+    throw(InfeasibleConstraint(string("Couldn't find feasible constraints for ", expr)))
 end
