@@ -10,6 +10,7 @@ module InterpretableValidation
     using POMDPs
     using POMDPSimulators
     using POMDPPolicies
+    using POMDPPlayback
 
     # mvrandn
     export mvrandn_μ, mvrandn
@@ -33,11 +34,9 @@ module InterpretableValidation
     include("constrained_distributions.jl")
 
     # Optimization and Grammar
-    export loss_fn, sample_comparison, create_grammar, default_comparison_distribution, optimize, set_global_grammar_params
+    export loss_fn, sample_comparison, create_grammar,
+           default_comparison_distribution, optimize, set_global_grammar_params,
+           discrete_action_mdp, sample_history
     include("optimization.jl")
-
-    # POMDP support
-    export PlaybackPolicy, discrete_action_mdp, sample_history
-    include("pomdp_support.jl")
 end
 
