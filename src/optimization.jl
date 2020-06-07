@@ -12,6 +12,8 @@ function default_comparison_distribution(t::MvTimeseriesDistribution; σ_factor 
         elseif dist isa IID{Categorical{Float64, Array{Float64,1}}}
             d = dist.distribution
             comparison_distribution[sym] = Categorical(length(d.p)) # make it uniformly probable
+        elseif dist isa IID{Bernoulli{Float64}}
+            comparison_distribution[sym] = DiscreteNonParametric([0,1], [0.5, 0.5]) # Make true false uniformly likely
         elseif dist isa GaussianProcess
             μ = mean([mean(rand(dist)) for i=1:50])
             σ = mean([std(rand(dist)) for i=1:50])
@@ -50,8 +52,9 @@ end
 # Creates a standard loss function that samples trials and uses eval_fn to compute average loss
 function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRNG = Random.GLOBAL_RNG, trials_per_expression = 10, max_loss = 1e9)
     function loss(rn::RuleNode, grammar::Grammar)
+        l = length(rn)
         ex = get_executable(rn, grammar)
-        total_loss = 0.
+        total_loss = 0
         for i=1:trials_per_expression
             try
                 timeseries = rand(rng, ex, d)
@@ -64,7 +67,7 @@ function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRN
                 end
             end
         end
-        total_loss/trials_per_expression
+        total_loss/trials_per_expression + l
     end
 end
 
@@ -93,16 +96,26 @@ function optimize(eval_fn::Function,
 end
 
 # Function to generate the MvTimeseriesDistribution and eval function for a mdp with discrete actions
-function discrete_action_mdp(mdp, N::Int64; backup_policy = RandomPolicy(mdp), rng = Random.GLOBAL_RNG, use_prob = true, action_probability = nothing)
+function discrete_action_mdp(mdp, N::Int64; backup_policy = RandomPolicy(mdp), rng = Random.GLOBAL_RNG, use_prob = true, action_probability = (mdp, a) -> 1. / length(actions(mdp)))
     x = collect(1.:N)
-    as = actions(mdp)
-    d = (use_prob) ? Categorical([action_probability(mdp, a) for a in as]) : Categorical(length(as))
-    t = MvTimeseriesDistribution(:a => IID(x, d))
+    t = MvTimeseriesDistribution(:a => IID(x, Categorical([action_probability(mdp, a) for a in actions(mdp)])))
     f = function eval_fn(d::Dict{Symbol, Array})
-        as = actions(mdp)[d[:a]]
-        r = simulate(RolloutSimulator(rng), mdp, PlaybackPolicy(as, backup_policy))
-        (use_prob) ? -log(r) - logpdf(t, d) : -r
-    end
+            as = actions(mdp)[d[:a]]
+            r = simulate(RolloutSimulator(rng), mdp, PlaybackPolicy(as, backup_policy))
+            (use_prob) ? -log(r) - logpdf(t, d) : -r
+        end
+    t, f
+end
+
+function continuous_action_mdp(mdp, a_dist::Dict{Symbol, Distribution}, N::Int64; backup_policy, create_actions_fn, rng = Random.GLOBAL_RNG, use_prob = true)
+    x = collect(1.:N)
+    t = MvTimeseriesDistribution(key => IID(x, a_dist[key]) for key in keys(a_dist))
+    f = function eval_fn(d::Dict{Symbol, Array})
+            as = create_actions_fn(d)
+            r = simulate(RolloutSimulator(rng), mdp, PlaybackPolicy(as, backup_policy))
+            ret = (use_prob) ? -log(r) - logpdf(t, d) : -r
+            isinf(ret) ? 1e9 : ret
+        end
     t, f
 end
 

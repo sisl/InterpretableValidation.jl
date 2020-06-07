@@ -9,21 +9,27 @@ end
 
 # Construct a ConstrainedTimeseriesDisribution from a IID{Uniform} distribution
 function ConstrainedTimeseriesDistribution(d::IID{Uniform{Float64}})
-    lb = d.distribution.a*ones(length(d.x))
-    ub = d.distribution.b*ones(length(d.x))
+    lb = d.distribution.a*ones(N_pts(d))
+    ub = d.distribution.b*ones(N_pts(d))
     ConstrainedTimeseriesDistribution(:continuous, lb, ub, Array{Int64}[], d)
 end
 
 # Construct a ConstrainedTimeseriesDisribution from a IID{Normal} distribution
 function ConstrainedTimeseriesDistribution(d::IID{Normal{Float64}})
-    lb = -Inf*ones(length(d.x))
-    ub = Inf*ones(length(d.x))
+    lb = -Inf*ones(N_pts(d))
+    ub = Inf*ones(N_pts(d))
     ConstrainedTimeseriesDistribution(:continuous, lb, ub, Array{Int64}[], d)
 end
 
 # Construct a ConstrainedTimeseriesDisribution from a IID{Categorical} distribution
 function ConstrainedTimeseriesDistribution(d::IID{Categorical{Float64, Array{Float64, 1}}})
-    feasible = [collect(1:length(d.distribution.p)) for i=1:length(d.x)]
+    feasible = [collect(1:length(d.distribution.p)) for i=1:N_pts(d)]
+    ConstrainedTimeseriesDistribution(:discrete, Float64[], Float64[], feasible, d)
+end
+
+# Construct a ConstrainedTimeseriesDisribution from a IID{Bernoulli} distribution
+function ConstrainedTimeseriesDistribution(d::IID{Bernoulli{Float64}})
+    feasible = [[0,1] for i=1:N_pts(d)]
     ConstrainedTimeseriesDistribution(:discrete, Float64[], Float64[], feasible, d)
 end
 
@@ -148,10 +154,14 @@ Base.showerror(io::IO, e::InfeasibleConstraint) = print(io, "Infeasible Constrai
 function Base.rand(rng::AbstractRNG, expr::Expr, d::MvTimeseriesDistribution; validity_trials = 10)
     N = N_pts(d)
     for i=1:validity_trials
-        d2 = deepcopy(d)
+        d2 = MvTimeseriesDistribution()
+        for (k, v) in d
+            d2[k] = ConstrainedTimeseriesDistribution(v.vartype, copy(v.lb), copy(v.ub), deepcopy(v.feasible), v.timeseries_distribution)
+        end
         constraints = sample_constraints(expr, N, rng::AbstractRNG)
         constrain_timeseries!(d2, constraints)
         isfeasible(d2) && return rand(rng, d2)
     end
     throw(InfeasibleConstraint(string("Couldn't find feasible constraints for ", expr)))
 end
+

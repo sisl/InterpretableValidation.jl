@@ -36,7 +36,7 @@ module InterpretableValidation
     # Optimization and Grammar
     export loss_fn, sample_comparison, create_grammar,
            default_comparison_distribution, optimize, set_global_grammar_params,
-           discrete_action_mdp, sample_history
+           discrete_action_mdp, continuous_action_mdp, sample_history
     include("optimization.jl")
 end
 

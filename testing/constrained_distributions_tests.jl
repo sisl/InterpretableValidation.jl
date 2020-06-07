@@ -18,6 +18,11 @@ categorical = ConstrainedTimeseriesDistribution(IID(x, Categorical(5)))
 v = rand(categorical)
 @test all([v[i] in collect(1:5) for i=1:length(v)])
 
+bernoulli = ConstrainedTimeseriesDistribution(IID(x, Bernoulli(0.1)))
+v = rand(bernoulli)
+@test sum(v) > 0
+@test sum(v) < 20
+
 gp = ConstrainedTimeseriesDistribution(GaussianProcess(m = (x) -> 0, k = squared_exp_kernel(l=4), x = x))
 gp.lb = -1*ones(100)
 v = rand(gp)
@@ -29,6 +34,7 @@ v = rand(gp)
 @test !isdiscrete(uniform)
 @test isdiscrete(categorical)
 @test !iscontinuous(categorical)
+@test isdiscrete(bernoulli)
 @test iscontinuous(gp)
 
 ## Test feasible check
@@ -46,11 +52,11 @@ uniform.lb[1]=100
 uniform.lb[1]=old
 
 ## Test construction of MvTimeseriesDistribution
-mvts = MvTimeseriesDistribution(:x => uniform, :y =>normal, :z => categorical, :gp =>gp)
+mvts = MvTimeseriesDistribution(:x => uniform, :y =>normal, :z => categorical, :gp =>gp, :b => bernoulli)
 @test N_pts(mvts) == 100
 
 v = rand(mvts)
-@test length(v) == 4
+@test length(v) == 5
 
 
 ## Test the application of constraints
@@ -86,6 +92,11 @@ discrete_equality!(categorical, 3, [:anybool, fill(true, 50)..., fill(false, 49)
 @test categorical.feasible[1] == [1,2,3,4,5]
 @test all([categorical.feasible[i] == [3] for i=2:51])
 @test all([!(3 in categorical.feasible[i]) for i in 52:100])
+
+discrete_equality!(bernoulli, 1, [:anybool, fill(true, 50)..., fill(false, 49)...])
+@test bernoulli.feasible[1] == [0,1]
+@test all([bernoulli.feasible[i] == [1] for i=2:51])
+@test all([bernoulli.feasible[i] == [0] for i=52:100])
 
 ## Test constraint on the time series
 constrain_timeseries!(mvts, Meta.parse("x .<= 1."), Array{Any}(fill(true, 100)))
@@ -131,3 +142,4 @@ mvts = MvTimeseriesDistribution(:x => IID(x, Uniform(2,3)))
 good_vals = rand(Random.GLOBAL_RNG, expr, mvts)
 x = good_vals[:x]
 @test all_between((x .== 2.881512049363103) .| (x .<= 2.3141385919362447), 59, 14)
+

@@ -11,6 +11,8 @@ normal = IID(x, Normal(0.5, 1.))
 @test normal isa IID{Normal{Float64}}
 categorical = IID(x, Categorical(5))
 @test categorical isa IID{Categorical{Float64, Array{Float64,1}}}
+bernoulli = IID(x, Bernoulli(0.1))
+@test bernoulli isa IID{Bernoulli{Float64}}
 
 @test N_pts(uniform) == 100
 
@@ -18,6 +20,7 @@ categorical = IID(x, Categorical(5))
 @test logpdf(uniform, 2.5*ones(100)) == 0
 @test logpdf(normal, ones(100)) ≈ 100*logpdf(Normal(0.5, 1.), 1.)
 @test logpdf(categorical, ones(Int, 100)) ≈ 100*log(0.2)
+@test logpdf(bernoulli, fill(true, 100)) ≈ 100*log(0.1)
 
 v = rand(Random.GLOBAL_RNG, uniform)
 @test all((v .> 2.) .& (v .< 3.))
@@ -34,6 +37,12 @@ v = rand(Random.GLOBAL_RNG, categorical)
 
 v = rand(Random.GLOBAL_RNG, categorical, fill([1], 100))
 @test all(v.==1)
+
+v = rand(Random.GLOBAL_RNG, bernoulli)
+@test sum(v) < 20
+
+v = rand(Random.GLOBAL_RNG, bernoulli, fill([1], 100))
+@test all(v)
 
 ## GaussianProcess Tests
 gp = GaussianProcess(m = (x) -> 0, k = squared_exp_kernel(l=100), x = x)

@@ -44,6 +44,19 @@ function Base.rand(rng::AbstractRNG, iid::IID{Categorical{Float64, Array{Float64
     samples
 end
 
+# Bernoulli
+function Base.rand(rng::AbstractRNG, iid::IID{Bernoulli{Float64}}, feasible::Array{Array{Int64,1},1} = fill([0,1], N_pts(iid)))
+    samples = Array{Bool}(undef, length(iid.x))
+    for i=1:length(iid.x)
+        if length(feasible[i]) == 1
+            samples[i] = Bool(feasible[i][1])
+        else
+            samples[i] = rand(rng, iid.distribution)
+        end
+    end
+    samples
+end
+
 ## Time series distributed according to a Gaussian Processs
 squared_exp_kernel(;l=2, σ2 = 1) = (x,xp) -> σ2*exp(-(x-xp)^2/(2*l^2))
 
