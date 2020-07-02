@@ -81,7 +81,7 @@ loss = loss_fn((x) -> throw(error("itsaerror")), mvts)
 @test_throws ErrorException loss(rn, g)
 
 loss = loss_fn((x) -> throw(InfeasibleConstraint("itsaerror")), mvts)
-@test loss(rn, g) == 1e9
+@test loss(rn, g) >= 1e9
 
 
 
