@@ -20,3 +20,6 @@ The steps include
 * `comparison_distribution` - The distribution for sampling comparisons like `x < 0.5`. Default:  `default_comparison_distribution(d)`.
 * `grammar` - The grammar used to sample expressions. Default: `create_grammar()`.
 * `verbose` - Whether or not to print progress. Default: `true`
+
+
+Maintained by Anthony Corso (acorso@stanford.edu)
