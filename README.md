@@ -1,4 +1,6 @@
 # Interpretable Safety Validation
+[![Build Status](https://travis-ci.org/sisl/InterpretableValidation.jl.svg?branch=master)](https://travis-ci.org/sisl/InterpretableValidation.jl) [![Coverage Status](https://coveralls.io/repos/github/sisl/InterpretableValidation.jl/badge.svg?branch=master)](https://coveralls.io/github/sisl/InterpretableValidation.jl?branch=master) [![codecov](https://codecov.io/gh/sisl/InterpretableValidation.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/sisl/InterpretableValidation.jl)
+
 A collection of tools for the interpretable safety validation of autonomous system. See the following paper for a description of the methods: https://arxiv.org/abs/2004.06805
 
 ## Usage
