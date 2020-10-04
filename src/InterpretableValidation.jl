@@ -10,7 +10,6 @@ module InterpretableValidation
     using POMDPs
     using POMDPSimulators
     using POMDPPolicies
-    using POMDPPlayback
 
     # mvrandn
     export mvrandn_μ, mvrandn

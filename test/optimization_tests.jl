@@ -6,7 +6,6 @@ using ExprRules
 using POMDPs
 using POMDPSimulators
 using POMDPModels
-using POMDPPlayback
 using POMDPPolicies
 
 rng = Random.GLOBAL_RNG

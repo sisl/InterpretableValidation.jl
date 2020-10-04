@@ -100,7 +100,7 @@ function discrete_action_mdp(mdp, N::Int64; backup_policy = RandomPolicy(mdp), r
     x = collect(1.:N)
     t = MvTimeseriesDistribution(:a => IID(x, Categorical([action_probability(mdp, a) for a in actions(mdp)])))
     f = function eval_fn(d::Dict{Symbol, Array})
-            as = actions(mdp)[d[:a]]
+            as = [actions(mdp)[d[:a]]...]
             r = simulate(RolloutSimulator(rng), mdp, PlaybackPolicy(as, backup_policy))
             (use_prob) ? -log(r) - logpdf(t, d) : -r
         end
@@ -121,6 +121,7 @@ end
 
 function sample_history(expr::Expr, t::MvTimeseriesDistribution, mdp, rng = Random.GLOBAL_RNG; backup_policy = RandomPolicy(mdp))
     d = rand(rng, expr, t)
-    as = actions(mdp)[d[:a]]
+    as = [actions(mdp)[d[:a]]...]
     simulate(HistoryRecorder(), mdp, PlaybackPolicy(as, backup_policy))
 end
+
