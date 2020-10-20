@@ -151,7 +151,7 @@ end
 Base.showerror(io::IO, e::InfeasibleConstraint) = print(io, "Infeasible Constraint:  ", e.msg)
 
 # Tries to sample a time series that satisfies the expression from the provided MvTimeseriesDistribution
-function Base.rand(rng::AbstractRNG, expr::Expr, d::MvTimeseriesDistribution; validity_trials = 10)
+function Base.rand(rng::AbstractRNG, expr::Expr, d::MvTimeseriesDistribution; validity_trials = 2)
     N = N_pts(d)
     for i=1:validity_trials
         d2 = MvTimeseriesDistribution()

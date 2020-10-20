@@ -3,6 +3,8 @@
 lnPhi(x) = -0.5 * x^2 - 0.69314718055994530941723212 +
             log(erfcx(x / 1.4142135623730950488016887242))
 
+sqrt2pi = sqrt(2*pi)
+
 # Computes ln(P(a<Z<b)) where Z~N(0,1) very accurately for any 'a', 'b'
 function lnNpr(a, b)
     pa, pb = lnPhi(abs(a)), lnPhi(abs(b))
@@ -112,14 +114,17 @@ function cholperm(Σ_in, l, u)
     perm, L, z = [1:d...], zeros(d,d), zeros(d,1)
     for j = 1:d
         pr = Inf*ones(d) # compute marginal prob.
-        rd = j:d # search remaining dimensions
+        rd = collect(j:d) # search remaining dimensions
+        ud = collect(1:j-1)
         D = diag(Σ)
-        s = D[rd] .- sum(L[rd,1:j-1].^2, dims=2)
+        s = D[rd] .- sum(L[rd,ud].^2, dims=2)
         s[s.<0] .= 1e-16
         s = sqrt.(s)
 
-        tl = (l[rd] .- L[rd,1:j-1]*z[1:j-1])./s
-        tu = (u[rd] .- L[rd,1:j-1]*z[1:j-1])./s
+        L_z = L[rd,ud]*z[ud]
+
+        tl = (l[rd] .- L_z)./s
+        tu = (u[rd] .- L_z)./s
 
         pr[rd] = lnNpr.(tl,tu)
 
@@ -142,21 +147,24 @@ function cholperm(Σ_in, l, u)
         perm[jk] .= perm[kj] # keep track of permutation
 
         # construct L sequentially via Cholesky computation
-        s = Σ[j,j] - sum(L[j,1:j-1].^2)
+        s = Σ[j,j] - sum(L[j,ud].^2)
 
         if s<-0.01 error("Σ is not positive semi-definite") end
         if s < 0 s = 1e-16 end
         L[j,j] = sqrt(s)
+        Ld = L[j,j]
 
-        L[j+1:d,j:j] .= (Σ[j+1:d,j]-L[j+1:d,1:j-1]*L[j:j,1:j-1]')./L[j,j]
+        L[j+1:d,j:j] .= (Σ[j+1:d,j]-L[j+1:d,1:j-1]*L[j:j,1:j-1]')./Ld
 
         # find mean value, z(j), of truncated normal:
-        tl = (l[j].-L[j:j,1:j-1]*z[1:j-1])./L[j,j]
-        tu = (u[j].-L[j:j,1:j-1]*z[1:j-1])./L[j,j]
+        L_z = L[j:j,ud]*z[ud]
+
+        tl = (l[j].-L_z)./Ld
+        tu = (u[j].-L_z)./Ld
         w = lnNpr.(tl,tu) # aids in computing expected value of trunc. normal
 
         @assert length(tl) == 1 && length(tu) == 1 && length(w) == 1
-        z[j] = (exp(-.5*tl[1]^2 - w[1]) - exp(-5*tu[1]^2. - w[1]))/sqrt(2*pi)
+        z[j] = (exp(-.5*tl[1]^2 - w[1]) - exp(-5*tu[1]^2. - w[1]))/sqrt2pi
     end
     L, l, u, perm
 end

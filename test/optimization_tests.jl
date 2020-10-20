@@ -20,15 +20,19 @@ mvts = MvTimeseriesDistribution(:x => uniform, :y => normal, :z => categorical, 
 # Test the contents of the default range
 comparison_distribution = default_comparison_distribution(mvts)
 @test comparison_distribution[:x] == Uniform(2,3)
-@test comparison_distribution[:y] == Uniform(0.5-3,0.5+3)
+@test comparison_distribution[:y] == Uniform(0.5-5,0.5+5)
 @test comparison_distribution[:z] == Categorical(5)
 @test comparison_distribution[:gp] isa Uniform
 @test comparison_distribution[:gp].a < -2
 @test comparison_distribution[:gp].b > 2
 
+comparisons = default_comparisons(mvts)
+@test comparisons[:x] == [Symbol(".<="), Symbol(".>=")]
+@test comparisons[:z] == [Symbol(".==")]
+
 # Sample some random comparisons
 for i=1:100
-    expr = sample_comparison(comparison_distribution, Random.GLOBAL_RNG)
+    expr = sample_comparison(comparison_distribution, comparisons, Random.GLOBAL_RNG)
     @test expr.head == :call
     sym = expr.args[2]
     if sym == :z
@@ -42,22 +46,22 @@ for i=1:100
 end
 
 # Test the grammar rules and grammar sampling
-g = create_grammar()
+g = create_stl_grammar(length(mvts), comparison_distribution, comparisons)
 @test g.rules[1] == Meta.parse("R && R")
-@test g.rules[5] == Meta.parse("any_between(τ, C, C)")
-@test g.iseval[7]
-@test g.iseval[10]
+# @test g.rules[5] == Meta.parse("any_between(τ, C, C)")
+# @test g.iseval[7]
+# @test g.iseval[10]
 
 
 # Test the loss function
-set_global_grammar_params(N, comparison_distribution, rng)
+set_global_grammar_params(N, comparison_distribution, comparisons, rng)
 ev(t::Dict{Symbol, Array}) = sum(sum.(values(t)))
 ev(rand(mvts))
 rn = rand(RuleNode, g, :R, 3)
 loss = loss_fn(ev, mvts)
 @test loss(rn, g) > 0
 
-results = optimize((x) -> rand(), mvts, Npop=10, Niter=3, verbose = false)
+results = optimize_timed_stl((x) -> rand(), mvts, Npop=10, Niter=3, verbose = false)
 @test results.loss > 0
 
 # Sample until we have a feasible rule

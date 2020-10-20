@@ -1,6 +1,11 @@
 using InterpretableValidation
 using Test
 
+@test not_inv(:anybool, Random.GLOBAL_RNG) == :anybool
+@test not_inv(true, Random.GLOBAL_RNG) == false
+@test not_inv(false, Random.GLOBAL_RNG) == true
+
+
 @test and_inv(true, Random.GLOBAL_RNG) == (true, true)
 @test and_inv(false, Random.GLOBAL_RNG) in [(false, :anybool), (:anybool, false)]
 @test and_inv(:anybool, Random.GLOBAL_RNG) == (:anybool, :anybool)
@@ -46,7 +51,7 @@ using Test
 @test !any_between([true, false, false, false], 2, 4)
 @test !any_between([false, true, true, false], 4, 4)
 @test any_between([false, true, false, false], 2, 3)
-@test any_between_inv(true, 2, 3, 4, Random.GLOBAL_RNG)[1] in ([false, false, true, :anybool], [false, true, :anybool, :anybool])
+@test any_between_inv(true, 2, 3, 4, Random.GLOBAL_RNG)[1] in ([:anybool, :anybool, true, :anybool], [:anybool, true, :anybool, :anybool])
 @test any_between_inv(false, 2, 3, 4, Random.GLOBAL_RNG) == ([:anybool, false, false, :anybool],)
 
 
@@ -58,4 +63,16 @@ constraints = sample_constraints(Meta.parse("all(x .>= 1.) && any(x .>= 10)"), 1
 @test constraints[2][1] == Meta.parse("x .>= 10")
 @test sum(constraints[2][2] .== :anybool) == 9
 @test sum(constraints[2][2] .== true) == 1
+
+
+# Test nested temporal operators
+expr = Meta.parse("any_between( all(x .>= 1.), 1,2)")
+constraints = sample_constraints(expr, 10, Random.GLOBAL_RNG)
+
+
+expr = Meta.parse("all( any_between(x .>= 1., 1, 3))")
+x = collect(1:30.)
+constraints = sample_constraints(expr, 30, Random.GLOBAL_RNG)
+mvts = MvTimeseriesDistribution(:x => IID(x, Uniform(0,1)))
+constrain_timeseries!(mvts,constraints)
 

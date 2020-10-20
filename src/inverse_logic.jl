@@ -1,6 +1,5 @@
 const IV_TERMINALS = [Symbol(".=="), Symbol(".<="), Symbol(".>=")] # Calls that should terminate the tree search
-const IV_EXPANDERS  = [:any, :all] # Calls the expand from scalar to time series
-const IV_PARAMETERIZED = Dict(:all_before => 1, :all_after => 1, :all_between => 2, :any_between=>2)
+const IV_PARAMETERIZED = Dict(:any => 0, :all => 0, :all_before => 1, :all_after => 1, :all_between => 2, :any_between=>2)
 
 # Negation operator applied to bool or :anybool
 flex_not(b::Union{Symbol, Bool}) =  (b == :anybool ? :anybool : !b)
@@ -8,29 +7,33 @@ flex_not(b::Union{Symbol, Bool}) =  (b == :anybool ? :anybool : !b)
 all_before(τ, i) = all(τ[1:i])
 all_after(τ, i) = all(τ[i:end])
 
-all_between(τ, i, j) = all(τ[min(i,j):max(i,j)])
-any_between(τ, i, j) = any(τ[min(i,j):max(i,j)])
+all_between(τ, i, j) = all(τ[min(i,j):min(length(τ), max(i,j))])
+any_between(τ, i, j) = any(τ[min(i,j):min(length(τ), max(i,j))])
 
 function all_between_inv(out, i, j, N, rng::AbstractRNG)
+    l = min(i,j)
+    l > N && throw(InfeasibleConstraint("Couldn't find feasible constraint due to out of bounds range"))
+    h = min(max(i,j), N)
     arr = Array{Any}(undef, N)
     fill!(arr, :anybool)
     if out == true
-         arr[min(i,j):max(i,j)] .= true
+         arr[l:h] .= true
     elseif out == false
-        arr[rand(rng, min(i,j):max(i,j))] = false
+        arr[rand(rng, l:h)] = false
     end
     (arr,)
 end
 
 function any_between_inv(out, i, j, N, rng::AbstractRNG)
+    l = min(i,j)
+    l > N && throw(InfeasibleConstraint("Couldn't find feasible constraint due to out of bounds range"))
+    h = min(max(i,j), N)
     arr = Array{Any}(undef, N)
     fill!(arr, :anybool)
     if out == true
-        pt = rand(rng, min(i,j):max(i,j))
-        arr[1:pt-1] .= false
-        arr[pt] = true
+        arr[rand(rng, l:h)] = true
     elseif out == false
-        arr[min(i,j):max(i,j)] .= false
+        arr[l:h] .= false
     end
     (arr,)
 end
@@ -56,6 +59,11 @@ function all_after_inv(out, i, N, rng::AbstractRNG)
         arr[rand(rng, i:N)] = false
     end
     (arr,)
+end
+
+function not_inv(out, rng::AbstractRNG)
+    out == :anybool && return :anybool
+    (length(out) > 1 ) ? ([flex_not(v) for v in out],) : flex_not(out)
 end
 
 
@@ -126,17 +134,19 @@ function bitwise_op_inv(out, op_inv, rng::AbstractRNG)
 end
 
 # Defines the invers of the bitwise "and" operator
-bitwise_and_inv(out, rng::AbstractRNG) = bitwise_op_inv(out, and_inv, rng)
+bitwise_and_inv(out, rng::AbstractRNG) = (out isa Array) ? bitwise_op_inv(out, and_inv, rng) : and_inv(out, rng)
+
 
 # Defines the inverse of the bitwise "or" operator
-bitwise_or_inv(out, rng::AbstractRNG) = bitwise_op_inv(out, or_inv, rng)
+bitwise_or_inv(out, rng::AbstractRNG) = (out isa Array) ? bitwise_op_inv(out, or_inv, rng) : or_inv(out, rng)
 
 # Mapping an operation to its inverse
 bool_inverses = Dict(
-        :&& => and_inv,
-        :|| => or_inv,
+        :&& => bitwise_and_inv,
+        :|| => bitwise_or_inv,
         :any => any_inv,
         :all => all_inv,
+        :! => not_inv,
         :all_before => all_before_inv,
         :all_after => all_after_inv,
         :all_between => all_between_inv,
@@ -158,6 +168,7 @@ end
 # `constraints` - The list of constraints and their corresponding truth values
 # `N` - The length of the time series
 function sample_constraints!(expr, truthval, constraints, N, rng::AbstractRNG)
+    all(truthval .== :anybool) && return
     if expr.head == :call && expr.args[1] in IV_TERMINALS
         # Add constrain expression to the list of constraints and return
         push!(constraints, [expr, truthval])
@@ -169,27 +180,59 @@ function sample_constraints!(expr, truthval, constraints, N, rng::AbstractRNG)
         # Special handing for expanding operators that need to be passed `N`
         op = expr.args[1]
         inv = bool_inverses[op]
-        if op in IV_EXPANDERS
-            inv = inv(truthval, N, rng)
-            sample_constraints!(expr.args[2], inv[1], constraints, N, rng)
-        elseif op in keys(IV_PARAMETERIZED)
+        if op in keys(IV_PARAMETERIZED)
             ps = IV_PARAMETERIZED[op]
-            inv = inv(truthval, expr.args[3:3+(ps - 1)]..., N, rng)
-            sample_constraints!(expr.args[2], inv[1], constraints, N, rng)
+            if length(truthval) == 1
+                inv_res = inv(truthval, expr.args[3:3+(ps - 1)]..., N, rng)
+                sample_constraints!(expr.args[2], inv_res[1], constraints, N, rng)
+            else
+                for i=1:N
+                    inv_res = [fill(:anybool, i-1)..., inv(truthval[i], expr.args[3:3+(ps - 1)]..., N-i+1, rng)[1]...]
+                    sample_constraints!(expr.args[2], inv_res, constraints, N, rng)
+                end
+            end
         else
-            inv = inv(truthval, rng)
-            for i in 1:length(inv)
-                sample_constraints!(expr.args[i+1], inv[i], constraints, N, rng)
+            inv_res = inv(truthval, rng)
+            for i in 1:length(inv_res)
+                sample_constraints!(expr.args[i+1], inv_res[i], constraints, N, rng)
             end
         end
 
     else
         # Here "head" contains the operator and args contains the expressions
         # Get the inverse and recurse directly
-        inv = bool_inverses[expr.head](truthval, rng)
-        for i in 1:length(inv)
-            sample_constraints!(expr.args[i], inv[i], constraints, N, rng)
+        inv_res = bool_inverses[expr.head](truthval, rng)
+        for i in 1:length(inv_res)
+            sample_constraints!(expr.args[i], inv_res[i], constraints, N, rng)
         end
     end
+end
+
+
+## The stuff below here is for implies clauses
+function parse_implications(expr)
+    implications = Dict{Expr, Expr}()
+    parse_implications!(expr, implications)
+    implications
+end
+
+function parse_implications!(expr, implications)
+    if expr.head == :vect
+        implications[expr.args[1]] = expr.args[2]
+        return
+    elseif expr.head == :&&
+        parse_implications!(expr.args[1], implications)
+        parse_implications!(expr.args[2], implications)
+    else
+        throw(error("Unregonized head ", expr.head))
+    end
+end
+
+function and_expressions(exprs)
+    new_expr = exprs[1]
+    for i=2:length(exprs)
+        new_expr = Expr(:.&, new_expr, exprs[i])
+    end
+    Expr(:call, :all, new_expr)
 end
 

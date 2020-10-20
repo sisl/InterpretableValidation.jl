@@ -1,5 +1,5 @@
 # Generate the default comparison range
-function default_comparison_distribution(t::MvTimeseriesDistribution; σ_factor = 3)
+function default_comparison_distribution(t::MvTimeseriesDistribution; σ_factor = 5)
     comparison_distribution = Dict{Symbol, Distribution}()
     for (sym, d) in t
         dist = d.timeseries_distribution
@@ -25,37 +25,62 @@ function default_comparison_distribution(t::MvTimeseriesDistribution; σ_factor 
     comparison_distribution
 end
 
+function default_comparisons(t::MvTimeseriesDistribution)
+    comparisons = Dict{Symbol, Vector{Symbol}}()
+    for (sym, d) in t
+        if iscontinuous(d)
+            comparisons[sym] = [Symbol(".<="), Symbol(".>=")]
+        else
+            comparisons[sym] = [Symbol(".==")]
+        end
+    end
+    return comparisons
+end
+
 # Sample a symbolic comparison
-function sample_comparison(comparison_distribution::Dict{Symbol, Distribution}, rng::AbstractRNG = Random.GLOBAL_RNG)
+function sample_comparison(comparison_distribution::Dict{Symbol, Distribution}, comparisons::Dict{Symbol, Vector{Symbol}}, rng::AbstractRNG = Random.GLOBAL_RNG)
     sym = rand(rng, keys(comparison_distribution))
     dist = comparison_distribution[sym]
-    op = Symbol(".==")
-    if dist isa ContinuousUnivariateDistribution
-        op = rand(rng, [Symbol(".=="), Symbol(".<="), Symbol(".>=")])
-    end
+    op = rand(rng, comparisons[sym])
     val = rand(rng, dist)
     Expr(:call, op, sym, val)
 end
 
 # Function that returns the grammar for producing expressions of length N
-function create_grammar()
+function create_stl_grammar(N, comparison_distribution, comparisons, rng = Random.GLOBAL_RNG)
+    set_global_grammar_params(N, comparison_distribution, comparisons, rng)
     @grammar begin
-        R = (R && R) | (R || R) # "and" and "or" expressions for scalar values
-        R = all(τ) | any(τ)# τ is true everywhere or τ is eventually true
-        R = any_between(τ, C, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
+        R = (R && R) | (R || R) | !R #| all(R) | any(R) | any_between(R, C, C) | all_between(R, C, C) # "and" and "or" expressions for scalar values
+        R = all(τ) | any(τ) | any_between(τ, C, C) | all_between(τ, C, C) # τ is true everywhere before or after C (inclusive)
         C = _(rand(InterpretableValidation.GRAMMAR_rng, 1:InterpretableValidation.GRAMMAR_N))
         τ = (τ .& τ) | (τ .| τ) # "and" and "or" for boolean time series
-        τ = _(sample_comparison(InterpretableValidation.GRAMMAR_comparison_distribution, InterpretableValidation.GRAMMAR_rng))
+        τ = _(sample_comparison(InterpretableValidation.GRAMMAR_comparison_distribution, InterpretableValidation.GRAMMAR_comparisons, InterpretableValidation.GRAMMAR_rng))
+    end
+end
+
+function create_policy_grammar(N, disturbance_comparison_distribution, disturbance_comparisons, state_comparison_distribution, state_comparisons; rng = Random.GLOBAL_RNG)
+    set_global_grammar_params(N,
+                              disturbance_comparison_distribution,
+                              disturbance_comparisons,
+                              rng,
+                              state_comparison_distribution = state_comparison_distribution,
+                              state_comparisons = state_comparisons)
+    @grammar begin
+        R = R && R
+        R = [S, X]
+        S = (S .& S) | (S .| S)
+        S = _(sample_comparison(InterpretableValidation.GRAMMAR_state_comparison_distribution, InterpretableValidation.GRAMMAR_state_comparisons, InterpretableValidation.GRAMMAR_rng))
+        X = (X .& X) | (X .| X)
+        X = _(sample_comparison(InterpretableValidation.GRAMMAR_comparison_distribution, InterpretableValidation.GRAMMAR_comparisons,  InterpretableValidation.GRAMMAR_rng))
     end
 end
 
 # Creates a standard loss function that samples trials and uses eval_fn to compute average loss
-function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRNG = Random.GLOBAL_RNG, trials_per_expression = 10, max_loss = 1e9)
+function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRNG = Random.GLOBAL_RNG, episodes = 10, max_loss = 1e9, length_penalty = 0.01)
     function loss(rn::RuleNode, grammar::Grammar)
-        l = length(rn)
         ex = get_executable(rn, grammar)
         total_loss = 0
-        for i=1:trials_per_expression
+        for i=1:episodes
             try
                 timeseries = rand(rng, ex, d)
                 total_loss += eval_fn(timeseries)
@@ -67,32 +92,94 @@ function loss_fn(eval_fn::Function, d::MvTimeseriesDistribution; rng::AbstractRN
                 end
             end
         end
-        total_loss/trials_per_expression + l
+        total_loss/episodes + length_penalty*length(rn)
     end
 end
 
-function set_global_grammar_params(N, comparison_distribution, rng)
+function get_policy(ex, s_fn::Function, x_fn::Function, d_fn::Function; rng::AbstractRNG = Random.GLOBAL_RNG)
+    imps = parse_implications(ex)
+    ks = collect(keys(imps))
+    # Construct a policy to be used for rollouts
+    function pol(s)
+        d = d_fn(s)
+        st = s_fn(s)
+        valid_keys = ks[[interpret(st, k) for k in ks]]
+        if length(valid_keys) == 0
+            x = rand(rng, d)
+        else
+            constraint_expr = and_expressions([imps[k] for k in valid_keys])
+            x = rand(rng, constraint_expr, d)
+        end
+        x_fn(x)
+    end
+    FunctionPolicy(pol)
+end
+
+function policy_loss_fn(mdp, eval_fn, s_fn::Function, x_fn::Function, d_fn::Function; rng::AbstractRNG = Random.GLOBAL_RNG, episodes = 10, max_loss = 1e9, length_penalty = 0.01)
+    function loss(rn::RuleNode, grammar::Grammar)
+        ex = get_executable(rn, grammar)
+        pol = get_policy(ex, s_fn, x_fn, d_fn, rng = rng)
+
+        total_loss = 0
+        for i=1:episodes
+            try
+                total_loss += eval_fn(pol)
+            catch e
+                if e isa InfeasibleConstraint
+                    total_loss += max_loss
+                else
+                    throw(e)
+                end
+            end
+        end
+        total_loss/episodes + length_penalty*length(rn)
+    end
+end
+
+function set_global_grammar_params(N, comparison_distribution, comparisons, rng; state_comparison_distribution = Dict(), state_comparisons = Dict())
+    global GRAMMAR_state_comparison_distribution = state_comparison_distribution
+    global GRAMMAR_state_comparisons = state_comparisons
     global GRAMMAR_N = N
     global GRAMMAR_comparison_distribution = comparison_distribution
+    global GRAMMAR_comparisons = comparisons
     global GRAMMAR_rng = rng
 end
 
 # Wrapper for the optimization function
-function optimize(eval_fn::Function,
+function optimize_timed_stl(eval_fn::Function,
                   d::MvTimeseriesDistribution;
                   rng::AbstractRNG = Random.GLOBAL_RNG,
-                  loss = loss_fn(eval_fn, d, rng = rng),
+                  episodes = 10,
+                  loss = loss_fn(eval_fn, d, rng = rng, episodes = episodes),
                   Npop = 1000,
                   Niter = 30,
-                  max_depth = 10,
-                  opt = GeneticProgram(Npop, Niter, max_depth, 0.3, 0.3, 0.4),
-                  comparison_distribution = default_comparison_distribution(d),
-                  grammar = create_grammar(),
+                  max_depth = 4,
+                  top_k_frac = 0.3,
+                  opt = GeneticProgram(Npop, Niter, max_depth, 0.3, 0.3, 0.4, init_method = ExprOptimization.GeneticPrograms.RandomInit(), select_method = ExprOptimization.GeneticPrograms.TruncationSelection(Int(floor(top_k_frac*Npop)))),
+                  grammar = create_stl_grammar(N_pts(d), default_comparison_distribution(d), default_comparisons(d), rng),
                   verbose = true
                  )
   # setup the global variables that the grammar uses
-  set_global_grammar_params(N_pts(d), comparison_distribution, rng)
   ExprOptimization.optimize(opt, grammar, :R, loss, verbose = verbose)
+end
+
+function optimize_stl_policy(mdp,
+                  eval_fn::Function,
+                  s_fn::Function,
+                  x_fn::Function,
+                  d_fn::Function,
+                  grammar::Grammar;
+                  episodes = 10,
+                  rng::AbstractRNG = Random.GLOBAL_RNG,
+                  loss = policy_loss_fn(mdp, eval_fn, s_fn, x_fn, d_fn, rng = rng, episodes = episodes),
+                  Npop = 1000,
+                  Niter = 30,
+                  max_depth = 4,
+                  top_k_frac = 0.3,
+                  opt = GeneticProgram(Npop, Niter, max_depth, 0.3, 0.3, 0.4, init_method = ExprOptimization.GeneticPrograms.RandomInit(), select_method = ExprOptimization.GeneticPrograms.TruncationSelection(Int(floor(top_k_frac*Npop)))),
+                  verbose = true
+                 )
+    ExprOptimization.optimize(opt, grammar, :R, loss, verbose = verbose)
 end
 
 # Function to generate the MvTimeseriesDistribution and eval function for a mdp with discrete actions
