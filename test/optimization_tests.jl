@@ -57,9 +57,9 @@ g = create_stl_grammar(length(mvts), comparison_distribution, comparisons)
 set_global_grammar_params(N, comparison_distribution, comparisons, rng)
 ev(t::Dict{Symbol, Array}) = sum(sum.(values(t)))
 ev(rand(mvts))
-rn = rand(RuleNode, g, :R, 3)
+rn = rand(RuleNode, g, :R, 30)
 loss = loss_fn(ev, mvts)
-@test loss(rn, g) > 0
+@test loss(rn, g) isa Real
 
 results = optimize_timed_stl((x) -> rand(), mvts, Npop=10, Niter=3, verbose = false)
 @test results.loss > 0
